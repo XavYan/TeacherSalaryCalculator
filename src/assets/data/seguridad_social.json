@@ -1,0 +1,18 @@
+{
+  "regimenGeneral": {
+    "contingenciasComunes": {
+      "trabajador": 4.85,
+      "empresa": 24.35
+    },
+    "desempleo": {
+      "trabajador": 1.55,
+      "empresa": 5.50
+    },
+    "formacionProfesional": {
+      "trabajador": 0.10,
+      "empresa": 0.60
+    },
+    "totalTrabajador": 6.50,
+    "totalEmpresa": 30.45
+  }
+}

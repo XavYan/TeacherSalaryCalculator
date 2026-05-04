@@ -1,0 +1,102 @@
+[
+  {
+    "cuerpo": "Maestras/os",
+    "sueldoBase": 1199.52,
+    "trienios": {
+      "base": 43.54,
+      "suplementoNoCapit": 34.35
+    },
+    "destino": 600.31,
+    "especifico": 818.45,
+    "residencia": {
+      "islaCapit": 146.72,
+      "islaNoCapit": 488.66
+    },
+    "pagaExtra": {
+      "base": 874.83,
+      "trienios": 31.74,
+      "destino": 600.30,
+      "especifico": 638.38
+    }
+  },
+  {
+    "cuerpo": "Maestras/os de 1 ciclo ESO",
+    "sueldoBase": 1199.52,
+    "trienios": {
+      "base": 43.54,
+      "suplementoNoCapit": 34.35
+    },
+    "destino": 600.31,
+    "especifico": 909.95,
+    "residencia": {
+      "islaCapit": 146.72,
+      "islaNoCapit": 488.66
+    },
+    "pagaExtra": {
+      "base": 874.83,
+      "trienios": 31.74,
+      "destino": 600.30,
+      "especifico": 709.76
+    }
+  },
+  {
+    "cuerpo": "Profesorado sectores singulares de FP",
+    "sueldoBase": 1199.52,
+    "trienios": {
+      "base": 43.54,
+      "suplementoNoCapit": 34.35
+    },
+    "destino": 739.23,
+    "especifico": 771.00,
+    "residencia": {
+      "islaCapit": 146.72,
+      "islaNoCapit": 488.66
+    },
+    "pagaExtra": {
+      "base": 874.83,
+      "trienios": 31.74,
+      "destino": 739.24,
+      "especifico": 601.39
+    }
+  },
+  {
+    "cuerpo": "Secundaria",
+    "sueldoBase": 1387.24,
+    "trienios": {
+      "base": 53.39,
+      "suplementoNoCapit": 38.19
+    },
+    "destino": 739.26,
+    "especifico": 768.72,
+    "residencia": {
+      "islaCapit": 163.00,
+      "islaNoCapit": 542.91
+    },
+    "pagaExtra": {
+      "base": 856.05,
+      "trienios": 32.96,
+      "destino": 739.24,
+      "especifico": 599.59
+    }
+  },
+  {
+    "cuerpo": "Catedráticos",
+    "sueldoBase": 1387.24,
+    "trienios": {
+      "base": 53.39,
+      "suplementoNoCapit": 42.87
+    },
+    "destino": 885.40,
+    "especifico": 829.08,
+    "residencia": {
+      "islaCapit": 183.38,
+      "islaNoCapit": 610.80
+    },
+    "pagaExtra": {
+      "base": 856.05,
+      "trienios": 32.96,
+      "destino": 885.39,
+      "especifico": 646.69
+    }
+  }
+]

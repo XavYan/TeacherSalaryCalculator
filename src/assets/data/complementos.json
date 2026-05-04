@@ -1,0 +1,62 @@
+{
+  "otros cargos": {
+    "Jefatura Departamento": 70.89,
+    "Dirección Centro Profesores CEP": 363.85,
+    "Dirección Residencia Escolar Permanente": 337.67,
+    "Dirección Residencia Escolar": 175.77,
+    "Maestros Ocio Residencia Permanente": 152.49,
+    "Coordinación EOEP": 105.86,
+    "Tutorías grupos autorizados": 35.00,
+    "Coordinación AICLE B2": 45.00,
+    "Coordinación AICLE (C1, C2)": 55.00,
+    "Profesorado AICLE": 35.00,
+    "Profesorado AICLE (C1, C2)": 45.00,
+    "Itinerancia (€/km)": 0.26,
+    "Vicesecretaría más de 1000 alumnos/as": 71.32,
+    "Vicesecretaría de 601 a 999 alumnos/as": 41.97,
+    "Dir. de Equipo Zonal Tutoría de Jóvenes": 122.79,
+    "Coordinación Servicios Centrales Tipo A1": 412.01,
+    "Coordinación Servicios Centrales Tipo A2": 234.05,
+    "Hora lectiva complementaria Grupo A1": 20.84,
+    "Hora lectiva complementaria Grupo A2": 17.73,
+    "Coordinación Dual e Innovación": 30.00,
+    "Coordinación de Emprendimiento": 30.00,
+    "Coordinación de Orientación Profesional": 30.00,
+    "Coordinación de PRL, TIC y Convivencia": 30.00,
+    "Coordinación de Patrimonio e Igualdad": 30.00
+  },
+  "cargos directivos": {
+    "Dirección": {
+      "Tipo A": 552.34,
+      "Tipo B": 503.95,
+      "Tipo C": 380.04,
+      "Tipo D": 289.17,
+      "Tipo E": 195.96,
+      "Tipo F": 122.79
+    },
+    "Vicedirección": {
+      "Tipo A": 226.64,
+      "Tipo B": 217.21,
+      "Tipo C": 203.02,
+      "Tipo D": 158.18,
+      "Tipo E": 106.25,
+      "Tipo F": 0.00
+    },
+    "Jefatura de Estudios": {
+      "Tipo A": 226.64,
+      "Tipo B": 217.21,
+      "Tipo C": 203.02,
+      "Tipo D": 158.18,
+      "Tipo E": 106.25,
+      "Tipo F": 0.00
+    },
+    "Secretaría": {
+      "Tipo A": 226.64,
+      "Tipo B": 217.21,
+      "Tipo C": 203.02,
+      "Tipo D": 158.18,
+      "Tipo E": 106.25,
+      "Tipo F": 0.00
+    }
+  }
+}
