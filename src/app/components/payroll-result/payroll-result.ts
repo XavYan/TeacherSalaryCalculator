@@ -16,7 +16,11 @@ import { PayrollResult } from '../../models/payroll.model';
           <div class="row text-center mb-4">
             <div class="col-12">
               <span class="text-muted text-uppercase small fw-bold">Salario Neto Mensual</span>
-              <h2 class="display-4 text-success fw-bold">{{ result.salarioNeto | currency:'EUR' }}</h2>
+              <h2 class="display-4 text-success fw-bold mb-0">{{ result.salarioNeto | currency:'EUR' }}</h2>
+              <div class="mt-2 text-muted animate__animated animate__fadeIn">
+                <span class="x-small text-uppercase fw-bold">Paga Extra Neta:</span>
+                <span class="ms-2 fw-medium text-primary">{{ result.pagaExtraNeta | currency:'EUR' }}</span>
+              </div>
             </div>
           </div>
 
@@ -25,12 +29,6 @@ import { PayrollResult } from '../../models/payroll.model';
             <div class="card-body p-3">
               <h6 class="text-primary small fw-bold text-uppercase mb-3 border-bottom pb-2">Información de la Nómina</h6>
               <div class="row g-2 small">
-                <div class="col-md-6" *ngIf="result.input.nombreCompleto">
-                  <span class="text-muted text-uppercase x-small">Nombre:</span> &nbsp;<span class="fw-medium">{{ result.input.nombreCompleto }}</span>
-                </div>
-                <div class="col-md-6" *ngIf="result.input.dni">
-                  <span class="text-muted text-uppercase x-small">DNI:</span> &nbsp;<span class="fw-medium">{{ result.input.dni }}</span>
-                </div>
                 <div class="col-md-6">
                   <span class="text-muted text-uppercase x-small">Cuerpo:</span> &nbsp;<span class="fw-medium">{{ result.input.cuerpo }}</span>
                 </div>
@@ -66,6 +64,14 @@ import { PayrollResult } from '../../models/payroll.model';
               <span>Sueldo Base</span>
               <span>{{ result.detalleDevengos.sueldoBase | currency:'EUR' }}</span>
             </div>
+            <div *ngIf="result.detalleDevengos.trienios > 0" class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
+              <span>Trienios ({{ result.input.trienios }})</span>
+              <span>{{ result.detalleDevengos.trienios | currency:'EUR' }}</span>
+            </div>
+            <div *ngIf="result.detalleDevengos.sexenios > 0" class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
+              <span>Sexenios ({{ result.input.sexenios }})</span>
+              <span>{{ result.detalleDevengos.sexenios | currency:'EUR' }}</span>
+            </div>
             <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
               <span>C. Destino</span>
               <span>{{ result.detalleDevengos.complementoDestino | currency:'EUR' }}</span>
@@ -92,6 +98,10 @@ import { PayrollResult } from '../../models/payroll.model';
                 <span>{{ item.importe | currency:'EUR' }}</span>
               </div>
             </div>
+            <div *ngIf="result.detalleDevengos.reduccionCompatibilidad > 0" class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
+              <span class="text-danger fw-medium">Reducción por Compatibilidad</span>
+              <span class="text-danger">-{{ result.detalleDevengos.reduccionCompatibilidad | currency:'EUR' }}</span>
+            </div>
             <div class="list-group-item d-flex justify-content-between align-items-center bg-success-subtle p-3">
               <span class="fw-bold">Total Devengado (Bruto)</span>
               <span class="fw-bold text-success">{{ result.totalDevengado | currency:'EUR' }}</span>
@@ -102,6 +112,15 @@ import { PayrollResult } from '../../models/payroll.model';
             <div class="list-group-item bg-light-subtle py-2 px-3">
               <span class="text-muted small fw-bold text-uppercase">Deducciones</span>
             </div>
+            <!-- Bases de Cotización -->
+            <div class="list-group-item bg-white py-2 px-3 border-bottom-0">
+              <div class="row g-2 x-small text-muted fst-italic">
+                <div class="col-6">Base IRPF: {{ result.detalleDeducciones.baseIRPF | currency:'EUR' }}</div>
+                <div class="col-6 text-end">Base CC: {{ result.detalleDeducciones.basesCotizacion.contingenciasComunes | currency:'EUR' }}</div>
+                <div class="col-12">Base CP/Desempleo/FP: {{ result.detalleDeducciones.basesCotizacion.contingenciasProfesionales | currency:'EUR' }}</div>
+              </div>
+            </div>
+            
             <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
               <span>Retención IRPF ({{ result.input.irpf }}%)</span>
               <span class="text-danger">-{{ result.detalleDeducciones.irpf | currency:'EUR' }}</span>
@@ -129,6 +148,62 @@ import { PayrollResult } from '../../models/payroll.model';
             <div class="list-group-item d-flex justify-content-between align-items-center bg-danger-subtle p-3">
               <span class="fw-bold">Total Deducciones</span>
               <span class="fw-bold text-danger">{{ result.totalDeducciones | currency:'EUR' }}</span>
+            </div>
+          </div>
+
+          <!-- Información Paga Extra -->
+          <div class="mt-4 card border-0 bg-white shadow-sm overflow-hidden">
+            <div class="card-header bg-primary text-white py-2 px-3 border-0">
+              <span class="small fw-bold text-uppercase">Desglose Paga Extra (Estimada)</span>
+            </div>
+            <div class="card-body p-0">
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item bg-light py-1 px-3">
+                  <span class="x-small text-muted fw-bold text-uppercase">Desglose del Bruto (Extra)</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                  <span class="fst-italic">Sueldo Base Extra</span>
+                  <span>{{ result.pagaExtraDetalle.sueldoBase | currency:'EUR' }}</span>
+                </li>
+                <li *ngIf="result.pagaExtraDetalle.trienios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                  <span class="fst-italic">Trienios Extra</span>
+                  <span>{{ result.pagaExtraDetalle.trienios | currency:'EUR' }}</span>
+                </li>
+                <li *ngIf="result.pagaExtraDetalle.sexenios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                  <span class="fst-italic">Sexenios Extra</span>
+                  <span>{{ result.pagaExtraDetalle.sexenios | currency:'EUR' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                  <span class="fst-italic">C. Destino Extra</span>
+                  <span>{{ result.pagaExtraDetalle.destino | currency:'EUR' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                  <span class="fst-italic">C. Específico Extra</span>
+                  <span>{{ result.pagaExtraDetalle.especifico | currency:'EUR' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small bg-white border-top">
+                  <span class="fw-bold">Total Bruto Extra</span>
+                  <span class="fw-bold">{{ result.pagaExtraBruta | currency:'EUR' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
+                  <span>Deducción IRPF ({{ result.input.irpf }}%)</span>
+                  <span class="text-danger">-{{ result.pagaExtraIrpf | currency:'EUR' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3 bg-primary-subtle">
+                  <span class="fw-bold">Importe Neto Final</span>
+                  <span class="h5 mb-0 text-primary fw-bold">{{ result.pagaExtraNeta | currency:'EUR' }}</span>
+                </li>
+              </ul>
+              <div class="p-2 bg-light border-top">
+                <p class="x-small text-muted mb-0 fst-italic">
+                  <i class="bi bi-info-circle me-1"></i>
+                  El importe bruto de la paga extra incluye la parte proporcional de trienios y sexenios reconocidos.
+                </p>
+                <p class="x-small text-muted mb-0 fst-italic mt-1">
+                  <i class="bi bi-info-circle me-1"></i>
+                  La paga extra no está sujeta a descuentos de Seguridad Social en el momento del cobro, ya que estos se prorratean mensualmente en las bases de cotización.
+                </p>
+              </div>
             </div>
           </div>
 

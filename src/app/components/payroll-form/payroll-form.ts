@@ -18,6 +18,18 @@ interface SalaryData {
     islaCapit: number;
     islaNoCapit: number;
   };
+  sexenios: {
+    [key: string]: number;
+  };
+  pagaExtra: {
+    base: number;
+    trienios: number;
+    destino: number;
+    especifico: number;
+    sexenios: {
+      [key: string]: number;
+    };
+  };
 }
 
 @Component({
@@ -26,23 +38,6 @@ interface SalaryData {
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <form [formGroup]="payrollForm" (ngSubmit)="onSubmit()" class="row g-4">
-      <!-- Datos Personales -->
-      <div class="col-md-8">
-        <label class="form-label fw-bold">Nombre completo y apellidos</label>
-        <div class="input-group shadow-sm">
-          <span class="input-group-text bg-white border-end-0"><i class="bi bi-person-fill text-primary"></i></span>
-          <input type="text" formControlName="nombreCompleto" class="form-control border-start-0" placeholder="Ej: Juan Pérez García">
-        </div>
-      </div>
-      
-      <div class="col-md-4">
-        <label class="form-label fw-bold">DNI</label>
-        <div class="input-group shadow-sm">
-          <span class="input-group-text bg-white border-end-0"><i class="bi bi-card-text text-primary"></i></span>
-          <input type="text" formControlName="dni" class="form-control border-start-0" placeholder="12345678X">
-        </div>
-      </div>
-
       <!-- Cuerpo e Isla -->
       <div class="col-md-6">
         <label class="form-label fw-bold">Cuerpo</label>
@@ -131,6 +126,33 @@ interface SalaryData {
       <div class="col-md-6">
         <label class="form-label fw-bold">Horas lectivas (máximo 18 horas)</label>
         <input type="number" formControlName="horasSemanales" class="form-control shadow-sm" placeholder="Ej: 18">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Trienios</label>
+        <input type="number" formControlName="trienios" class="form-control shadow-sm" placeholder="Ej: 2">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Sexenios (Máximo 5)</label>
+        <input type="number" formControlName="sexenios" class="form-control shadow-sm" placeholder="Ej: 1">
+      </div>
+
+      <!-- Compatibilidad Privada -->
+      <div class="col-12">
+        <div class="form-check form-switch p-3 bg-light rounded-3 border">
+          <input class="form-check-input ms-0 me-3" type="checkbox" formControlName="compatibilidadPrivada" id="compatibilidadCheck">
+          <label class="form-check-label fw-bold" for="compatibilidadCheck">
+            Reducción de C. Específico por compatibilidad con actividad privada
+          </label>
+          <div class="mt-3 animate__animated animate__fadeIn" *ngIf="payrollForm.get('compatibilidadPrivada')?.value">
+            <label class="form-label small fw-bold">Número de días de compatibilización (en el mes)</label>
+            <input type="number" formControlName="diasCompatibilidad" class="form-control shadow-sm w-50" placeholder="Ej: 30">
+            <div class="form-text text-info x-small mt-1">
+              <i class="bi bi-info-circle me-1"></i> Se aplicará la reducción proporcional al número de días indicados.
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Cargos Directivos (Nuevo Bloque) -->
@@ -276,6 +298,7 @@ interface SalaryData {
       background-color: #f8f9fa !important;
       border: 1px solid #e9ecef !important;
     }
+    .x-small { font-size: 0.7rem; }
   `
 })
 export class PayrollForm {
@@ -312,14 +335,16 @@ export class PayrollForm {
   }
 
   payrollForm: FormGroup = this.fb.group({
-    nombreCompleto: [''],
-    dni: [''],
     cuerpo: ['', [Validators.required]],
     isla: ['', [Validators.required]],
     mes: [new Date().getMonth() + 1, [Validators.required]],
     anio: [new Date().getFullYear(), [Validators.required]],
     diasTrabajados: [30, [Validators.required, Validators.min(1), Validators.max(30)]],
     horasSemanales: [18, [Validators.required, Validators.min(1), Validators.max(18)]],
+    trienios: [0, [Validators.required, Validators.min(0)]],
+    sexenios: [0, [Validators.required, Validators.min(0), Validators.max(5)]],
+    compatibilidadPrivada: [false],
+    diasCompatibilidad: [30, [Validators.min(0), Validators.max(30)]],
     cargoDirectivo: [''],
     tipoCentro: [''],
     complementos: [[]],
