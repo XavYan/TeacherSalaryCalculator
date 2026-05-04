@@ -1,59 +1,54 @@
-# NominaDocente
+# Calculadora de Nómina Docente (Canarias 2026) 🎓💰
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.8.
+Esta aplicación es una herramienta avanzada diseñada para que el personal docente de la Comunidad Autónoma de Canarias pueda calcular su salario neto de forma precisa, transparente y actualizada a la normativa de **2026**.
 
-## Development server
+La información salarial y los componentes de la nómina se basan en las tablas oficiales publicadas por el **STEC-IC**, disponibles en este [enlace oficial (PDF)](https://www.stec.es/stec/archivos_subidos/gal_descargas/2/_214.pdf).
 
-To start a local development server, run:
+## 🚀 Características Principales
 
-```bash
-ng serve
-```
+- **Actualizado a 2026**: Incluye las últimas tablas salariales y porcentajes de cotización.
+- **Multicuerpo**: Soporte para distintos cuerpos docentes (Maestros, Secundaria, Catedráticos, etc.).
+- **Gestión de Trienios y Sexenios**:
+  - Cálculo automático de trienios con suplemento por islas no capitalinas.
+  - Integración del Complemento de Formación Permanente (Sexenios) según la tabla oficial.
+- **Cálculo de Pagas Extras**:
+  - Desglose detallado del bruto de la paga extra.
+  - Cálculo del importe neto estimado tras retenciones.
+- **Transparencia en Deducciones**:
+  - Cálculo de bases de cotización (CC y CP) incluyendo el prorrateo de pagas extras.
+  - Desglose de cuotas obreras de la Seguridad Social (Contingencias Comunes, Desempleo y FP).
+  - Simulación de retención de IRPF personalizada.
+- **Reducción por Compatibilidad**: Implementación de la regla del 30% para compatibilizar el puesto con actividad privada.
+- **Interfaz Moderna**: Diseño premium basado en Angular (Standalone, Signals) con Bootstrap 5 y animaciones fluidas.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## 🛠️ Tecnologías Utilizadas
 
-## Code scaffolding
+- **Core**: Angular 21 (Signals, Standalone Components).
+- **Estilos**: Bootstrap 5, Bootstrap Icons, Animate.css.
+- **Datos**: JSON data-driven architecture para salarios y complementos.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## 💻 Desarrollo
 
-```bash
-ng generate component component-name
-```
+### Servidor de Desarrollo
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Para iniciar el servidor local de desarrollo:
 
 ```bash
-ng test
+npm run dev
 ```
 
-## Running end-to-end tests
+Navega a `http://localhost:4200/`. La aplicación se recargará automáticamente al detectar cambios.
 
-For end-to-end (e2e) testing, run:
+### Construcción (Build)
+
+Para generar el bundle de producción:
 
 ```bash
-ng e2e
+npm run build
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Los artefactos se almacenarán en el directorio `dist/`.
 
-## Additional Resources
+## 📄 Licencia
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Este proyecto es una herramienta informativa. Los cálculos son estimaciones y no tienen validez legal oficial. Se recomienda contrastar los resultados con la nómina emitida por la Consejería de Educación.
