@@ -45,7 +45,7 @@ import { PayrollResult } from '../../models/payroll.model';
                   <span class="text-muted text-uppercase x-small">Periodo:</span> &nbsp;<span class="fw-medium">{{ meses[result.input.mes - 1] }} / {{ result.input.anio }}</span>
                 </div>
                 <div class="col-md-6">
-                  <span class="text-muted text-uppercase x-small">Trabajado:</span> &nbsp;<span class="fw-medium">{{ result.input.diasTrabajados }} días / {{ result.input.porcentajeJornada ?? 100 }}% de jornada</span>
+                  <span class="text-muted text-uppercase x-small">Trabajado:</span> &nbsp;<span class="fw-medium">{{ result.input.diasTrabajados }} días / {{ result.input.horasSemanales }} horas lectivas semanales</span>
                 </div>
                 <div class="col-md-6" *ngIf="result.input.cargoDirectivo">
                   <span class="text-muted text-uppercase x-small">Cargo:</span> &nbsp;<span class="fw-medium">{{ result.input.cargoDirectivo }} (Tipo {{ result.input.tipoCentro }}) — {{ result.input.familiaCentro }}</span>

@@ -62,7 +62,7 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   for (const extra of r.pagasExtra) amount(`Extra de ${extra.nombre} - neto (${percent(extra.porcentajeDevengo)}% de devengo)`, extra.pagaExtraNeta, true);
   section('Datos de la simulación');
   row('Cuerpo', input.cuerpo); row('Isla', input.isla);
-  row('Días retribuidos / jornada', `${input.diasTrabajados} días / ${input.porcentajeJornada ?? input.horasSemanales / 18 * 100}%`);
+  row('Días retribuidos / horas lectivas semanales', `${input.diasTrabajados} días / ${input.horasSemanales} horas`);
   row('Trienios / sexenios', `${input.trienios} / ${input.sexenios}`);
   row('Retención IRPF', `${input.irpf}%`);
   row('Contrato - inicio y fin incluidos', `${dateLabel(input.fechaInicioContrato)} - ${dateLabel(input.fechaFinContrato)}`);

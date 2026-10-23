@@ -129,8 +129,8 @@ interface SalaryData {
       </div>
 
       <div class="col-md-6">
-        <label class="form-label fw-bold">Jornada retribuida (%)</label>
-        <input type="number" formControlName="porcentajeJornada" class="form-control shadow-sm" min="0.01" max="100" step="0.01">
+        <label class="form-label fw-bold">Horas lectivas semanales (máximo 18 horas)</label>
+        <input type="number" formControlName="horasSemanales" class="form-control shadow-sm" min="1" max="18" placeholder="Ej: 18">
       </div>
 
       <div class="col-md-6">
@@ -405,7 +405,7 @@ export class PayrollForm {
     mes: [new Date().getMonth() + 1, [Validators.required]],
     anio: [2026, [Validators.required, Validators.min(2026), Validators.max(2026)]],
     diasTrabajados: [30, [Validators.required, Validators.min(1), Validators.max(30)]],
-    porcentajeJornada: [100, [Validators.required, Validators.min(0.01), Validators.max(100)]],
+    horasSemanales: [18, [Validators.required, Validators.min(1), Validators.max(18)]],
     fechaInicioContrato: ['', Validators.required],
     fechaFinContrato: ['', Validators.required],
     regimen: ['general'],
