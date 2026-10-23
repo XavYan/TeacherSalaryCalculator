@@ -6,11 +6,11 @@
     "Dirección Residencia Escolar": 175.77,
     "Maestros Ocio Residencia Permanente": 152.49,
     "Coordinación EOEP": 105.86,
-    "Tutorías grupos autorizados": 35.00,
-    "Coordinación AICLE B2": 45.00,
-    "Coordinación AICLE (C1, C2)": 55.00,
-    "Profesorado AICLE": 35.00,
-    "Profesorado AICLE (C1, C2)": 45.00,
+    "Tutorías grupos autorizados": 35.0,
+    "Coordinación AICLE B2": 45.0,
+    "Coordinación AICLE (C1, C2)": 55.0,
+    "Profesorado AICLE": 35.0,
+    "Profesorado AICLE (C1, C2)": 45.0,
     "Itinerancia (€/km)": 0.26,
     "Vicesecretaría más de 1000 alumnos/as": 71.32,
     "Vicesecretaría de 601 a 999 alumnos/as": 41.97,
@@ -19,44 +19,112 @@
     "Coordinación Servicios Centrales Tipo A2": 234.05,
     "Hora lectiva complementaria Grupo A1": 20.84,
     "Hora lectiva complementaria Grupo A2": 17.73,
-    "Coordinación Dual e Innovación": 30.00,
-    "Coordinación de Emprendimiento": 30.00,
-    "Coordinación de Orientación Profesional": 30.00,
-    "Coordinación de PRL, TIC y Convivencia": 30.00,
-    "Coordinación de Patrimonio e Igualdad": 30.00
+    "Coordinación Dual e Innovación": 30.0,
+    "Coordinación de Emprendimiento": 30.0,
+    "Coordinación de Orientación Profesional": 30.0,
+    "Coordinación de PRL, TIC y Convivencia": 30.0,
+    "Coordinación de Patrimonio e Igualdad": 30.0,
+    "Conservatorio Superior de Música — Dirección": 541.67,
+    "Conservatorio Superior de Música — Vicedirección": 292.29,
+    "Conservatorio Superior de Música — Jefatura de Estudios": 292.29,
+    "Conservatorio Superior de Música — Secretaría Académica": 292.29,
+    "Conservatorio Superior de Música — Secretaría Adjunta": 210.71,
+    "Conservatorio Superior de Música — Jefatura Departamento": 141.69,
+    "Coordinación E. Rurales — Tipo A": 552.34,
+    "Coordinación E. Rurales — Tipo B": 503.95,
+    "Coordinación E. Rurales — Tipo C": 380.04,
+    "Coordinación E. Rurales — Tipo D": 289.17,
+    "Coordinación E. Rurales — Tipo E": 195.96,
+    "Coordinación E. Rurales — Tipo F": 122.79,
+    "Comedor gestión directa — Hasta 99 comensales": 139.54,
+    "Comedor gestión directa — Entre 100 y 299 comensales": 147.3,
+    "Comedor gestión directa — Más de 300 comensales": 158.1,
+    "Comedor gestión contratada — Hasta 99 comensales": 121.7,
+    "Comedor gestión contratada — Entre 100 y 299 comensales": 128.5,
+    "Comedor gestión contratada — Más de 300 comensales": 136.1
   },
   "cargos directivos": {
-    "Dirección": {
-      "Tipo A": 552.34,
-      "Tipo B": 503.95,
-      "Tipo C": 380.04,
-      "Tipo D": 289.17,
-      "Tipo E": 195.96,
-      "Tipo F": 122.79
+    "CER, CEIP, EE y Adultos": {
+      "Dirección": {
+        "Tipo A": 552.36,
+        "Tipo B": 503.98,
+        "Tipo C": 380.05,
+        "Tipo D": 289.18,
+        "Tipo E": 195.97,
+        "Tipo F": 122.8
+      },
+      "Jefatura de Estudios": {
+        "Tipo A": 226.08,
+        "Tipo B": 217.21,
+        "Tipo C": 203.03,
+        "Tipo D": 158.18,
+        "Tipo E": null,
+        "Tipo F": null
+      },
+      "Secretaría": {
+        "Tipo A": 226.08,
+        "Tipo B": 217.21,
+        "Tipo C": 203.03,
+        "Tipo D": 158.18,
+        "Tipo E": 106.25,
+        "Tipo F": null
+      },
+      "Vicedirección": {
+        "Tipo A": 226.08,
+        "Tipo B": 217.21,
+        "Tipo C": 203.03,
+        "Tipo D": null,
+        "Tipo E": null,
+        "Tipo F": null
+      }
     },
-    "Vicedirección": {
-      "Tipo A": 226.64,
-      "Tipo B": 217.21,
-      "Tipo C": 203.02,
-      "Tipo D": 158.18,
-      "Tipo E": 106.25,
-      "Tipo F": 0.00
+    "Secundaria, Medias, Artísticas, A distancia y EEOOII": {
+      "Dirección": {
+        "Tipo A": 694.24,
+        "Tipo B": 617.54,
+        "Tipo C": 556.13,
+        "Tipo D": 506.53
+      },
+      "Jefatura de Estudios": {
+        "Tipo A": 341.28,
+        "Tipo B": 327.09,
+        "Tipo C": 253.88,
+        "Tipo D": 203.12
+      },
+      "Secretaría": {
+        "Tipo A": 341.28,
+        "Tipo B": 327.09,
+        "Tipo C": 253.88,
+        "Tipo D": 203.12
+      },
+      "Vicedirección": {
+        "Tipo A": 341.28,
+        "Tipo B": 327.09,
+        "Tipo C": 253.88,
+        "Tipo D": 203.12
+      },
+      "Jefatura Adjunta": {
+        "Tipo A": 170.65,
+        "Tipo B": 163.56,
+        "Tipo C": 126.98,
+        "Tipo D": 101.59
+      }
+    }
+  },
+  "clasificacion centros": {
+    "CER, CEIP, EE y Adultos": {
+      "A": "Más de 35 unidades",
+      "B": "27 a 35 unidades",
+      "C": "18 a 26 unidades",
+      "D": "9 a 17 unidades",
+      "E": "6 a 8 unidades",
+      "F": "1 a 5 unidades"
     },
-    "Jefatura de Estudios": {
-      "Tipo A": 226.64,
-      "Tipo B": 217.21,
-      "Tipo C": 203.02,
-      "Tipo D": 158.18,
-      "Tipo E": 106.25,
-      "Tipo F": 0.00
-    },
-    "Secretaría": {
-      "Tipo A": 226.64,
-      "Tipo B": 217.21,
-      "Tipo C": 203.02,
-      "Tipo D": 158.18,
-      "Tipo E": 106.25,
-      "Tipo F": 0.00
+    "Secundaria, Medias, Artísticas, A distancia y EEOOII": {
+      "A": "IES/EEAA: 1650 o más alumnos; EEOOII: 3000 o más",
+      "B": "IES/EEAA: 901 a 1649 alumnos; EEOOII: 2000 a 2999",
+      "C": "IES/EEAA: 581 a 900 alumnos; EEOOII: 1000 a 1999",
+      "D": "IES/EEAA: hasta 580 alumnos; EEOOII: hasta 999"
     }
   }
 }

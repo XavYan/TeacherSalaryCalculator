@@ -18,6 +18,7 @@
 
             <app-payroll-form (calculate)="onCalculate($event)"></app-payroll-form>
 
+            <div *ngIf="calculationError()" class="alert alert-danger mt-3" role="alert">{{ calculationError() }}</div>
             <app-payroll-result [result]="payrollResult()"></app-payroll-result>
 
             <router-outlet></router-outlet>

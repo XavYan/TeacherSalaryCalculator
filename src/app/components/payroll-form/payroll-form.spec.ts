@@ -1,0 +1,51 @@
+import { TestBed } from '@angular/core/testing';
+import { PayrollForm } from './payroll-form';
+
+describe('Selección del equipo directivo', () => {
+  const setup = async () => {
+    await TestBed.configureTestingModule({ imports:[PayrollForm] }).compileComponents();
+    const fixture = TestBed.createComponent(PayrollForm);
+    fixture.detectChanges();
+    return fixture;
+  };
+  it('muestra los umbrales, todas las familias y el importe de Secundaria', async () => {
+    const fixture = await setup(), form = fixture.componentInstance;
+    form.payrollForm.patchValue({ cargoDirectivo:'Dirección', tipoCentro:'A' });
+    form.onCargoChange(); fixture.detectChanges();
+    expect(form.selectedCargoAmount()).toBe(694.24);
+    expect(fixture.nativeElement.textContent).toContain('1650 o más');
+    expect(fixture.nativeElement.textContent).toContain('3000 o más');
+    expect(form.tiposCentro).toEqual(['A','B','C','D']);
+  });
+  it('reinicia selección al cambiar familia y deshabilita combinaciones sin importe', async () => {
+    const fixture = await setup(), form = fixture.componentInstance;
+    form.payrollForm.patchValue({ cargoDirectivo:'Jefatura Adjunta', tipoCentro:'A' });
+    form.payrollForm.patchValue({ familiaCentro:'CER, CEIP, EE y Adultos' });
+    form.onFamiliaChange();
+    expect(form.payrollForm.value.cargoDirectivo).toBe('');
+    expect(form.selectedCargoAmount()).toBeNull();
+    form.payrollForm.patchValue({ tipoCentro:'E' });
+    fixture.detectChanges();
+    expect(form.cargoDisponible('Jefatura de Estudios')).toBe(false);
+    expect(form.cargoDisponible('Secretaría')).toBe(true);
+    const options = Array.from(fixture.nativeElement.querySelectorAll('[formControlName="cargoDirectivo"] option')) as HTMLOptionElement[];
+    expect(options.find(o=>o.value==='Jefatura de Estudios')?.disabled).toBe(true);
+    expect(form.tiposCentro).toEqual(['A','B','C','D','E','F']);
+    expect(form.descripcionTipo('E')).toBe('6 a 8 unidades');
+  });
+  it('limpia un cargo cuando cambia a un tipo que no lo contempla', async () => {
+    const form = (await setup()).componentInstance;
+    form.payrollForm.patchValue({ familiaCentro:'CER, CEIP, EE y Adultos', cargoDirectivo:'Vicedirección', tipoCentro:'D' });
+    form.onTipoChange();
+    expect(form.payrollForm.value.cargoDirectivo).toBe('');
+    expect(form.selectedCargoAmount()).toBeNull();
+  });
+  it('no emite cálculo con antigüedad fraccionaria ni año sin tablas', async () => {
+    const form = (await setup()).componentInstance;
+    let emits = 0; form.calculate.subscribe(()=>emits++);
+    form.payrollForm.patchValue({ cuerpo:'Secundaria', isla:'Tenerife', trienios:1.5 });
+    form.onSubmit(); expect(emits).toBe(0); expect(form.formError).toBeTruthy();
+    form.payrollForm.patchValue({ trienios:1, anio:2027 });
+    form.onSubmit(); expect(emits).toBe(0);
+  });
+});

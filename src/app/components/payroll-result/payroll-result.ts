@@ -39,10 +39,10 @@ import { PayrollResult } from '../../models/payroll.model';
                   <span class="text-muted text-uppercase x-small">Periodo:</span> &nbsp;<span class="fw-medium">{{ meses[result.input.mes - 1] }} / {{ result.input.anio }}</span>
                 </div>
                 <div class="col-md-6">
-                  <span class="text-muted text-uppercase x-small">Trabajado:</span> &nbsp;<span class="fw-medium">{{ result.input.diasTrabajados }} días / {{ result.input.horasSemanales }}h lectivas</span>
+                  <span class="text-muted text-uppercase x-small">Trabajado:</span> &nbsp;<span class="fw-medium">{{ result.input.diasTrabajados }} días / {{ result.input.porcentajeJornada ?? 100 }}% de jornada</span>
                 </div>
                 <div class="col-md-6" *ngIf="result.input.cargoDirectivo">
-                  <span class="text-muted text-uppercase x-small">Cargo:</span> &nbsp;<span class="fw-medium">{{ result.input.cargoDirectivo }} (Tipo {{ result.input.tipoCentro }})</span>
+                  <span class="text-muted text-uppercase x-small">Cargo:</span> &nbsp;<span class="fw-medium">{{ result.input.cargoDirectivo }} (Tipo {{ result.input.tipoCentro }}) — {{ result.input.familiaCentro }}</span>
                 </div>
                 <div class="col-md-6" *ngIf="result.input.complementos.length > 0">
                   <span class="text-muted text-uppercase x-small d-block mb-1">Otros cargos:</span>
@@ -127,12 +127,12 @@ import { PayrollResult } from '../../models/payroll.model';
             </div>
             <div class="list-group-item p-0 border-0">
               <div class="d-flex justify-content-between align-items-center py-2 px-3 small bg-light-subtle">
-                <span class="fw-medium text-muted">Seguridad Social (6,50%)</span>
+                <span class="fw-medium text-muted">Cotizaciones y cuotas</span>
                 <span class="fw-medium text-danger">-{{ result.detalleDeducciones.seguridadSocial | currency:'EUR' }}</span>
               </div>
-              <div class="px-4 py-1 small opacity-75">
+              <div *ngIf="result.input.regimen !== 'pasivos'" class="px-4 py-1 small opacity-75">
                 <div class="d-flex justify-content-between mb-1">
-                  <span class="fst-italic">- Contingencias Comunes (4,85%)</span>
+                  <span class="fst-italic">- Contingencias Comunes + MEI (4,85%)</span>
                   <span>{{ result.detalleDeducciones.seguridadSocialDetalle.contingenciasComunes | currency:'EUR' }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-1">
@@ -144,6 +144,13 @@ import { PayrollResult } from '../../models/payroll.model';
                   <span>{{ result.detalleDeducciones.seguridadSocialDetalle.formacionProfesional | currency:'EUR' }}</span>
                 </div>
               </div>
+            </div>
+            <div *ngIf="result.detalleDeducciones.seguridadSocialDetalle.solidaridad > 0" class="list-group-item d-flex justify-content-between small">
+              <span>Cotización de solidaridad</span><span>{{ result.detalleDeducciones.seguridadSocialDetalle.solidaridad | currency:'EUR' }}</span>
+            </div>
+            <div *ngIf="result.input.regimen === 'pasivos'" class="list-group-item small">
+              <div class="d-flex justify-content-between"><span>MUFACE</span><span>{{ result.detalleDeducciones.seguridadSocialDetalle.muface | currency:'EUR' }}</span></div>
+              <div class="d-flex justify-content-between"><span>Clases Pasivas</span><span>{{ result.detalleDeducciones.seguridadSocialDetalle.pasivos | currency:'EUR' }}</span></div>
             </div>
             <div class="list-group-item d-flex justify-content-between align-items-center bg-danger-subtle p-3">
               <span class="fw-bold">Total Deducciones</span>
@@ -189,6 +196,9 @@ import { PayrollResult } from '../../models/payroll.model';
                   <span>Deducción IRPF ({{ result.input.irpf }}%)</span>
                   <span class="text-danger">-{{ result.pagaExtraIrpf | currency:'EUR' }}</span>
                 </li>
+                <li *ngIf="result.pagaExtraCuotas > 0" class="list-group-item d-flex justify-content-between small">
+                  <span>Cuotas adicionales MUFACE y Clases Pasivas</span><span>-{{ result.pagaExtraCuotas | currency:'EUR' }}</span>
+                </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3 bg-primary-subtle">
                   <span class="fw-bold">Importe Neto Final</span>
                   <span class="h5 mb-0 text-primary fw-bold">{{ result.pagaExtraNeta | currency:'EUR' }}</span>
@@ -197,11 +207,11 @@ import { PayrollResult } from '../../models/payroll.model';
               <div class="p-2 bg-light border-top">
                 <p class="x-small text-muted mb-0 fst-italic">
                   <i class="bi bi-info-circle me-1"></i>
-                  El importe bruto de la paga extra incluye la parte proporcional de trienios y sexenios reconocidos.
+                  La extra corresponde al porcentaje de semestre devengado indicado y a la jornada actual. Incluye sueldo, trienios, destino, específico general y el 78% del sexenio. La guía no desglosa las extras de cargos y otros complementos: no se estiman aquí.
                 </p>
                 <p class="x-small text-muted mb-0 fst-italic mt-1">
                   <i class="bi bi-info-circle me-1"></i>
-                  La paga extra no está sujeta a descuentos de Seguridad Social en el momento del cobro, ya que estos se prorratean mensualmente en las bases de cotización.
+                  En Régimen General las cotizaciones de las extras se prorratean cada mes. En Clases Pasivas se descuentan cuotas adicionales en junio y diciembre. La extra se muestra separada del neto ordinario.
                 </p>
               </div>
             </div>
@@ -210,7 +220,7 @@ import { PayrollResult } from '../../models/payroll.model';
           <div class="mt-4 p-3 bg-white rounded-3 border border-info-subtle">
             <p class="mb-0 small text-muted">
               <i class="bi bi-info-circle-fill text-info me-2"></i>
-              Este es un cálculo estimado basado en los datos introducidos. Los valores reales pueden variar según la comunidad autónoma y circunstancias personales.
+              Este es un cálculo estimado basado en los datos introducidos. Tablas de Canarias 2026. Cambios de jornada, nombramiento o complementos durante el semestre requieren un cálculo individual. Las bases mínimas a jornada parcial y situaciones especiales pueden requerir ajuste según los días y horas en alta.
             </p>
           </div>
         </div>

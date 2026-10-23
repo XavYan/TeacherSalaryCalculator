@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, computed } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { PayrollInput } from '../../models/payroll.model';
@@ -38,6 +38,11 @@ interface SalaryData {
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <form [formGroup]="payrollForm" (ngSubmit)="onSubmit()" class="row g-4">
+      <div class="col-12 small alert alert-info">
+        Tablas STEC-IC de febrero de 2026. Importes brutos contrastados con la guía.
+        <a href="https://www.stec.es/stec/archivos_subidos/gal_descargas/2/_214.pdf" target="_blank" rel="noopener">Consultar PDF</a>.
+        La estimación usa una situación estable durante el semestre; no incluye atrasos ni liquidaciones.
+      </div>
       <!-- Cuerpo e Isla -->
       <div class="col-md-6">
         <label class="form-label fw-bold">Cuerpo</label>
@@ -114,7 +119,7 @@ interface SalaryData {
 
       <div class="col-md-6">
         <label class="form-label fw-bold">Año</label>
-        <input type="number" formControlName="anio" class="form-control shadow-sm" placeholder="Ej: 2024">
+        <input type="number" formControlName="anio" class="form-control shadow-sm" min="2026" max="2026" readonly>
       </div>
 
       <!-- Parámetros de Trabajo -->
@@ -124,8 +129,8 @@ interface SalaryData {
       </div>
 
       <div class="col-md-6">
-        <label class="form-label fw-bold">Horas lectivas (máximo 18 horas)</label>
-        <input type="number" formControlName="horasSemanales" class="form-control shadow-sm" placeholder="Ej: 18">
+        <label class="form-label fw-bold">Jornada retribuida (%)</label>
+        <input type="number" formControlName="porcentajeJornada" class="form-control shadow-sm" min="0.01" max="100" step="0.01">
       </div>
 
       <div class="col-md-6">
@@ -138,6 +143,19 @@ interface SalaryData {
         <input type="number" formControlName="sexenios" class="form-control shadow-sm" placeholder="Ej: 1">
       </div>
 
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Devengo de la paga extra (%)</label>
+        <input type="number" formControlName="porcentajeDevengoExtra" min="0" max="100" class="form-control">
+        <div class="form-text">100% si has devengado todo el semestre. Es independiente de los días de este mes y se aplica además de la jornada.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Régimen de cotización</label>
+        <select formControlName="regimen" class="form-select">
+          <option value="general">Régimen General — interinos (con desempleo y FP)</option>
+          <option value="pasivos">MUFACE y Clases Pasivas</option>
+        </select>
+        <div class="form-text">El régimen mixto MUFACE + pensiones del Régimen General no está incluido.</div>
+      </div>
       <!-- Compatibilidad Privada -->
       <div class="col-12">
         <div class="form-check form-switch p-3 bg-light rounded-3 border">
@@ -146,6 +164,9 @@ interface SalaryData {
             Reducción de C. Específico por compatibilidad con actividad privada
           </label>
           <div class="mt-3 animate__animated animate__fadeIn" *ngIf="payrollForm.get('compatibilidadPrivada')?.value">
+            <label class="form-label small fw-bold">Reducción mensual a jornada completa según tu resolución (€)</label>
+            <input type="number" formControlName="importeReduccionCompatibilidad" min="0" class="form-control mb-2">
+            <div class="form-text mb-2">Introduce el importe autorizado. El umbral legal del 30% excluye la antigüedad; no determina por sí solo tu reducción individual.</div>
             <label class="form-label small fw-bold">Número de días de compatibilización (en el mes)</label>
             <input type="number" formControlName="diasCompatibilidad" class="form-control shadow-sm w-50" placeholder="Ej: 30">
             <div class="form-text text-info x-small mt-1">
@@ -159,21 +180,31 @@ interface SalaryData {
       <div class="col-12">
         <div class="card border-0 bg-light shadow-sm">
           <div class="card-body row g-3">
-            <div class="col-md-8">
+            <div class="col-12">
+              <label class="form-label fw-bold">Enseñanzas del centro (equipo directivo)</label>
+              <select formControlName="familiaCentro" (change)="onFamiliaChange()" class="form-select">
+                <option *ngFor="let f of familiasCentro" [value]="f">{{ f }}</option>
+              </select>
+              <div class="form-text">Se elige por el centro, independientemente del cuerpo docente.</div>
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-bold">Cargo Directivo</label>
               <select formControlName="cargoDirectivo" (change)="onCargoChange()" class="form-select border-primary-subtle">
                 <option value="">Ninguno / Sin cargo directivo</option>
-                <option *ngFor="let c of cargosDirectivos" [value]="c">{{ c }}</option>
+                <option *ngFor="let c of cargosDirectivos" [value]="c" [disabled]="!cargoDisponible(c)">{{ c }}{{ !cargoDisponible(c) ? ' (no disponible en este tipo)' : '' }}</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-bold">Tipo de Centro</label>
-              <select formControlName="tipoCentro" (change)="onCargoChange()" class="form-select border-primary-subtle" [attr.disabled]="!payrollForm.get('cargoDirectivo')?.value ? true : null">
+              <select formControlName="tipoCentro" (change)="onTipoChange()" class="form-select border-primary-subtle">
                 <option value="" disabled>Seleccione...</option>
-                <option *ngFor="let t of tiposCentro" [value]="t">Tipo {{ t }}</option>
+                <option *ngFor="let t of tiposCentro" [value]="t">Tipo {{ t }} — {{ descripcionTipo(t) }}</option>
               </select>
             </div>
             
+            <div class="col-12 small text-muted">{{ descripcionTipo(payrollForm.get('tipoCentro')?.value) }}. Las unidades son grupos escolares.
+              Los cargos marcados como no disponibles no tienen importe en la guía para ese tipo de centro.
+            </div>
             <!-- Tabla Informativa Cargo Directivo -->
             <div class="col-12 mt-2" *ngIf="selectedCargoAmount() !== null">
               <div class="animate__animated animate__fadeIn">
@@ -228,6 +259,11 @@ interface SalaryData {
             <div class="d-flex align-items-center">
               <i class="bi bi-check-circle-fill text-success me-2"></i>
               <span class="fw-medium">{{ c }}</span>
+              <input *ngIf="esVariable(c)" type="number" min="0" step="0.01" class="form-control ms-2" style="max-width: 130px"
+                [attr.aria-label]="c === 'Itinerancia (€/km)' ? 'Kilómetros del mes' : 'Horas del mes'"
+                [placeholder]="c === 'Itinerancia (€/km)' ? 'km del mes' : 'horas del mes'"
+                (input)="actualizarCantidad(c, $event)">
+
             </div>
             <div class="d-flex align-items-center gap-3">
               <span class="text-primary fw-bold">{{ complementosData['otros cargos'][c] | currency:'EUR' }}</span>
@@ -243,6 +279,11 @@ interface SalaryData {
         </div>
       </div>
 
+      <div class="col-12 small text-muted">
+        Kilómetros y horas: indica las unidades efectivamente realizadas en el mes. La itinerancia se trata como indemnización por desplazamiento justificado, exenta dentro de sus límites.
+        Para comedor, la guía no define el caso de exactamente 300 comensales; tampoco aclara vicesecretaría con exactamente 1000 alumnos. Consulta esos casos antes de elegir un tramo.
+        Selecciona solo complementos compatibles y reconocidos en tu nómina.
+      </div>
       <!-- Parámetros Económicos -->
       <div class="col-md-6">
         <label class="form-label fw-bold">IRPF (%)</label>
@@ -254,6 +295,7 @@ interface SalaryData {
 
 
 
+      <div *ngIf="formError" class="col-12 alert alert-danger" role="alert">{{ formError }}</div>
       <div class="col-12 mt-5 text-center">
         <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm" [disabled]="payrollForm.invalid">
           <i class="bi bi-calculator me-2"></i>Calcular Nómina
@@ -303,14 +345,29 @@ interface SalaryData {
 })
 export class PayrollForm {
   private fb = inject(FormBuilder);
+  formError = "";
   
   @Output() calculate = new EventEmitter<PayrollInput>();
 
   salarios: SalaryData[] = salariosData as SalaryData[];
   complementosData: any = complementosData;
   
-  cargosDirectivos: string[] = Object.keys(this.complementosData['cargos directivos']);
-  tiposCentro: string[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+  familiasCentro = Object.keys(this.complementosData['cargos directivos']);
+  get cargosDirectivos(): string[] { return Object.keys(this.tablaDirectivos()); }
+  get tiposCentro(): string[] { return Object.keys(this.complementosData['clasificacion centros'][this.payrollForm.get('familiaCentro')?.value]); }
+  tablaDirectivos(): any { return this.complementosData['cargos directivos'][this.payrollForm.get('familiaCentro')?.value]; }
+  descripcionTipo(tipo: string): string { return this.complementosData['clasificacion centros'][this.payrollForm.get('familiaCentro')?.value]?.[tipo] ?? ''; }
+  cargoDisponible(cargo: string): boolean { return this.tablaDirectivos()?.[cargo]?.['Tipo ' + this.payrollForm.get('tipoCentro')?.value] != null; }
+  onFamiliaChange() { this.payrollForm.patchValue({ cargoDirectivo: '', tipoCentro: 'D' }); this.onCargoChange(); }
+  onTipoChange() {
+    if (!this.cargoDisponible(this.payrollForm.get('cargoDirectivo')?.value)) this.payrollForm.patchValue({ cargoDirectivo: '' });
+    this.onCargoChange();
+  }
+  esVariable(c: string): boolean { return c === 'Itinerancia (€/km)' || c.startsWith('Hora lectiva complementaria'); }
+  actualizarCantidad(c: string, event: Event) {
+    const cantidades = { ...this.payrollForm.get('cantidadesComplementos')?.value, [c]: Number((event.target as HTMLInputElement).value) };
+    this.payrollForm.patchValue({ cantidadesComplementos: cantidades });
+  }
   otrosCargosKeys: string[] = Object.keys(this.complementosData['otros cargos']).sort();
   
   selectedSalary = signal<SalaryData | undefined>(undefined);
@@ -338,15 +395,20 @@ export class PayrollForm {
     cuerpo: ['', [Validators.required]],
     isla: ['', [Validators.required]],
     mes: [new Date().getMonth() + 1, [Validators.required]],
-    anio: [new Date().getFullYear(), [Validators.required]],
+    anio: [2026, [Validators.required, Validators.min(2026), Validators.max(2026)]],
     diasTrabajados: [30, [Validators.required, Validators.min(1), Validators.max(30)]],
-    horasSemanales: [18, [Validators.required, Validators.min(1), Validators.max(18)]],
+    porcentajeJornada: [100, [Validators.required, Validators.min(0.01), Validators.max(100)]],
+    porcentajeDevengoExtra: [100, [Validators.required, Validators.min(0), Validators.max(100)]],
+    regimen: ['general'],
+    familiaCentro: ['Secundaria, Medias, Artísticas, A distancia y EEOOII'],
+    cantidadesComplementos: [{}],
+    importeReduccionCompatibilidad: [0, [Validators.required, Validators.min(0)]],
     trienios: [0, [Validators.required, Validators.min(0)]],
     sexenios: [0, [Validators.required, Validators.min(0), Validators.max(5)]],
     compatibilidadPrivada: [false],
     diasCompatibilidad: [30, [Validators.min(0), Validators.max(30)]],
     cargoDirectivo: [''],
-    tipoCentro: [''],
+    tipoCentro: ['D'],
     complementos: [[]],
     irpf: [15, [Validators.required, Validators.min(0), Validators.max(100)]]
   });
@@ -361,7 +423,7 @@ export class PayrollForm {
     const cargo = this.payrollForm.get('cargoDirectivo')?.value;
     const tipo = this.payrollForm.get('tipoCentro')?.value;
     if (cargo && tipo) {
-      const amount = this.complementosData['cargos directivos'][cargo]?.[`Tipo ${tipo}`] || 0;
+      const amount = this.tablaDirectivos()?.[cargo]?.[`Tipo ${tipo}`] ?? null;
       this.selectedCargoAmount.set(amount);
     } else {
       this.selectedCargoAmount.set(null);
@@ -374,6 +436,7 @@ export class PayrollForm {
 
     const current = this.selectedOtros();
     if (!current.includes(value)) {
+      if (this.esVariable(value)) this.payrollForm.patchValue({ cantidadesComplementos: { ...this.payrollForm.get('cantidadesComplementos')?.value, [value]: 0 } });
       const updated = [...current, value].sort((a, b) => a.localeCompare(b));
       this.selectedOtros.set(updated);
       this.payrollForm.patchValue({ complementos: updated });
@@ -396,7 +459,14 @@ export class PayrollForm {
 
   onSubmit() {
     if (this.payrollForm.valid) {
-      this.calculate.emit(this.payrollForm.value);
+      const value = this.payrollForm.value;
+      if (!Number.isInteger(value.trienios) || !Number.isInteger(value.sexenios) ||
+          (value.compatibilidadPrivada && (value.diasCompatibilidad > value.diasTrabajados || value.importeReduccionCompatibilidad > (this.selectedSalary()?.especifico ?? 0)))) {
+        this.formError = 'Revisa los trienios y sexenios (números enteros), y los días e importe de compatibilidad.';
+        return;
+      }
+      this.formError = '';
+      this.calculate.emit(value);
     }
   }
 }

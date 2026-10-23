@@ -1,4 +1,9 @@
 export interface PayrollInput {
+  porcentajeJornada?: number;
+  porcentajeDevengoExtra?: number;
+  familiaCentro?: string;
+  cantidadesComplementos?: Record<string, number>;
+  regimen?: "general" | "pasivos";
   cuerpo: string;
   isla: string;
   mes: number;
@@ -11,6 +16,7 @@ export interface PayrollInput {
   irpf: number;
   trienios: number;
   sexenios: number;
+  importeReduccionCompatibilidad?: number;
   compatibilidadPrivada: boolean;
   diasCompatibilidad: number;
   seguridadSocial?: number;
@@ -24,6 +30,7 @@ export interface PayrollResult {
   pagaExtraBruta: number;
   pagaExtraIrpf: number;
   pagaExtraNeta: number;
+  pagaExtraCuotas: number;
   pagaExtraDetalle: {
     sueldoBase: number;
     trienios: number;
@@ -55,6 +62,9 @@ export interface PayrollResult {
       contingenciasComunes: number;
       desempleo: number;
       formacionProfesional: number;
+      solidaridad: number;
+      muface: number;
+      pasivos: number;
     };
   };
 }

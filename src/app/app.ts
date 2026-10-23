@@ -20,8 +20,14 @@ export class App {
   
   protected payrollResult = signal<PayrollResult | undefined>(undefined);
 
+  protected calculationError = signal('');
   onCalculate(input: PayrollInput) {
-    const result = this.payrollService.calculatePayroll(input);
-    this.payrollResult.set(result);
+    try {
+      this.payrollResult.set(this.payrollService.calculatePayroll(input));
+      this.calculationError.set('');
+    } catch (error) {
+      this.payrollResult.set(undefined);
+      this.calculationError.set(error instanceof Error ? error.message : 'Revise los datos introducidos.');
+    }
   }
 }

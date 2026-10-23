@@ -4,164 +4,105 @@ import salariosData from '../../assets/data/salarios.json';
 import complementosData from '../../assets/data/complementos.json';
 import ssData from '../../assets/data/seguridad_social.json';
 
-@Injectable({
-  providedIn: 'root'
-})
+const money = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const sum = (...values: number[]) => money(values.reduce((a, b) => a + b, 0));
+const familias = complementosData['cargos directivos'] as Record<string, Record<string, Record<string, number | null>>>;
+
+@Injectable({ providedIn: 'root' })
 export class PayrollService {
-
-  constructor() { }
-
   calculatePayroll(input: PayrollInput): PayrollResult {
-    // 1. Obtener datos base del cuerpo
-    const salaryConfig = (salariosData as any[]).find(s => s.cuerpo === input.cuerpo);
-    const baseSueldo = salaryConfig?.sueldoBase || 0;
-    const baseDestino = salaryConfig?.destino || 0;
-    const baseEspecifico = salaryConfig?.especifico || 0;
-    
-    // 2. Residencia
-    const isCapitalina = input.isla === 'Gran Canaria' || input.isla === 'Tenerife';
-    const baseResidencia = isCapitalina 
-      ? (salaryConfig?.residencia?.islaCapit || 0)
-      : (salaryConfig?.residencia?.islaNoCapit || 0);
-
-    // 2.5 Trienios y Sexenios
-    const trieniosConfig = salaryConfig?.trienios;
-    const baseTrienio = trieniosConfig?.base || 0;
-    const suplementoTrienio = isCapitalina ? 0 : (trieniosConfig?.suplementoNoCapit || 0);
-    const importeTrienioMensual = baseTrienio + suplementoTrienio;
-    const totalTrieniosBase = (input.trienios || 0) * importeTrienioMensual;
-
-    const sexeniosConfig = salaryConfig?.sexenios;
-    const numSexenios = Math.min(input.sexenios || 0, 5);
-    const totalSexeniosBase = numSexenios > 0 ? (sexeniosConfig?.[numSexenios] || 0) : 0;
-
-    // 3. Cargos Directivos
-    let amountCargoDirectivo = 0;
-    if (input.cargoDirectivo && input.tipoCentro) {
-      amountCargoDirectivo = (complementosData as any)['cargos directivos'][input.cargoDirectivo]?.[`Tipo ${input.tipoCentro}`] || 0;
+    const config = salariosData.find(s => s.cuerpo === input.cuerpo);
+    if (!config) throw new Error('Seleccione un cuerpo válido.');
+    const range = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max;
+    if (input.anio !== 2026 || !range(input.mes, 1, 12) || !Number.isInteger(input.mes) ||
+        !range(input.diasTrabajados, 1, 30) || !range(input.irpf, 0, 100) ||
+        !Number.isInteger(input.trienios) || input.trienios < 0 ||
+        !Number.isInteger(input.sexenios) || !range(input.sexenios, 0, 5)) {
+      throw new Error('Revise los datos: las tablas disponibles corresponden a 2026.');
     }
-
-    // 4. Proporcionalidad
+    const jornada = input.porcentajeJornada === undefined ? input.horasSemanales / 18 : input.porcentajeJornada / 100;
+    const devengoExtra = (input.porcentajeDevengoExtra ?? 100) / 100;
+    if (!range(jornada, 0.0001, 1) || !range(devengoExtra, 0, 1)) throw new Error('Porcentaje de jornada o devengo extra inválido.');
     const factorDias = input.diasTrabajados / 30;
-    const factorHoras = input.horasSemanales / 18;
-    const multiplier = factorDias * factorHoras;
-
-    // 5. Otros Complementos
-    let amountOtrosCargos = 0;
-    const otrosCargosList: { nombre: string; importe: number }[] = [];
-    
-    input.complementos.forEach(c => {
-      const baseAmount = (complementosData as any)['otros cargos'][c] || 0;
-      const actualAmount = baseAmount * multiplier;
-      amountOtrosCargos += actualAmount;
-      otrosCargosList.push({ nombre: c, importe: actualAmount });
-    });
-
-    // 6. Cálculo de Devengos Proporcionales
-    const sueldoBase = baseSueldo * multiplier;
-    const trienios = totalTrieniosBase * multiplier;
-    const sexenios = totalSexeniosBase * multiplier;
-    const complementoDestino = baseDestino * multiplier;
-    const complementoEspecifico = baseEspecifico * multiplier;
-    const residencia = baseResidencia * multiplier;
-    const cargoDirectivo = amountCargoDirectivo * multiplier;
-    const otrosCargos = amountOtrosCargos; // Ya tiene el multiplicador aplicado en el bucle anterior
-
-    // 6.5 Reducción por Compatibilidad Privada
-    let reduccionCompatibilidad = 0;
-    if (input.compatibilidadPrivada && input.diasCompatibilidad > 0) {
-      // Regla: CE <= 30% de (Sueldo Base + Trienios)
-      const retribucionesBasicasBase = baseSueldo + totalTrieniosBase;
-      const limiteCE = retribucionesBasicasBase * 0.3;
-      
-      // La reducción se aplica sobre el Complemento Específico base
-      const excesoCE = Math.max(0, baseEspecifico - limiteCE);
-      
-      // Aplicamos la proporcionalidad de los días de compatibilidad y horas lectivas
-      const factorDiasCompat = input.diasCompatibilidad / 30;
-      reduccionCompatibilidad = excesoCE * factorDiasCompat * factorHoras;
+    const multiplier = factorDias * jornada;
+    const capitalina = ['Gran Canaria', 'Tenerife'].includes(input.isla);
+    if (!['Gran Canaria', 'Tenerife', 'La Palma', 'La Gomera', 'El Hierro', 'Lanzarote', 'Fuerteventura'].includes(input.isla)) throw new Error('Isla inválida.');
+    const grupoA1 = ['Secundaria', 'Catedráticos'].includes(input.cuerpo);
+    const pasivos = input.regimen === 'pasivos';
+    if (input.regimen && !['general', 'pasivos'].includes(input.regimen)) throw new Error('Régimen inválido.');
+    const sexenio = (config.sexenios as Record<string, number>)[input.sexenios] ?? 0;
+    const extraSexenio = (config.pagaExtra.sexenios as Record<string, number>)[input.sexenios] ?? 0;
+    let baseCargo = 0;
+    if (input.cargoDirectivo) {
+      const amount = familias[input.familiaCentro ?? '']?.[input.cargoDirectivo]?.[`Tipo ${input.tipoCentro}`];
+      if (amount == null) throw new Error('El cargo no está disponible en esa familia y tipo de centro.');
+      baseCargo = amount;
     }
+    let itinerancia = 0;
+    const otrosCargosList = [...new Set(input.complementos)].map(nombre => {
+      const tarifa = (complementosData['otros cargos'] as Record<string, number>)[nombre];
+      if (tarifa === undefined) throw new Error('Complemento desconocido.');
+      const variable = nombre === 'Itinerancia (€/km)' || nombre.startsWith('Hora lectiva complementaria');
+      const cantidad = variable ? input.cantidadesComplementos?.[nombre] : 1;
+      if (cantidad === undefined || !Number.isFinite(cantidad) || cantidad < 0) throw new Error('Indique los kilómetros u horas del mes.');
+      // Las unidades efectivamente realizadas no se vuelven a prorratear por jornada/días.
+      const importe = money(tarifa * cantidad * (variable ? 1 : multiplier));
+      if (nombre === 'Itinerancia (€/km)') itinerancia = importe;
+      return { nombre, importe };
+    });
+    const otrosCargos = sum(...otrosCargosList.map(c => c.importe));
+    const sueldoBase = money(config.sueldoBase * multiplier);
+    const trienios = money(input.trienios * (config.trienios.base + (capitalina ? 0 : config.trienios.suplementoNoCapit)) * multiplier);
+    const sexenios = money(sexenio * multiplier);
+    const complementoDestino = money(config.destino * multiplier);
+    const complementoEspecifico = money(config.especifico * multiplier);
+    const residencia = money((capitalina ? config.residencia.islaCapit : config.residencia.islaNoCapit) * multiplier);
+    const cargoDirectivo = money(baseCargo * multiplier);
+    // Importe mensual a jornada completa indicado en la resolución individual.
+    const reduccionBase = input.importeReduccionCompatibilidad ?? 0;
+    if (input.compatibilidadPrivada && (!range(input.diasCompatibilidad, 0, input.diasTrabajados) || !range(reduccionBase, 0, config.especifico))) throw new Error('Revise la reducción autorizada y sus días de aplicación.');
+    const reduccionCompatibilidad = input.compatibilidadPrivada ? money(reduccionBase * input.diasCompatibilidad / 30 * jornada) : 0;
+    const totalDevengado = sum(sueldoBase, trienios, sexenios, complementoDestino, complementoEspecifico, residencia, cargoDirectivo, otrosCargos, -reduccionCompatibilidad);
 
-    const totalDevengado = sueldoBase + trienios + sexenios + complementoDestino + complementoEspecifico + residencia + cargoDirectivo + otrosCargos - reduccionCompatibilidad;
-
-    // 6. Cálculo de Bases de Cotización (incluyendo prorrateo de paga extra)
-    const pagaExtraConfig = salaryConfig?.pagaExtra;
-    const importeTrienioExtra = pagaExtraConfig?.trienios || 0;
-    const totalTrieniosExtra = (input.trienios || 0) * importeTrienioExtra;
-
-    const sexeniosExtraConfig = pagaExtraConfig?.sexenios;
-    const totalSexeniosExtraBase = numSexenios > 0 ? (sexeniosExtraConfig?.[numSexenios] || 0) : 0;
-
-    const basePagaExtra = pagaExtraConfig 
-      ? (pagaExtraConfig.base + totalTrieniosExtra + totalSexeniosExtraBase + pagaExtraConfig.destino + pagaExtraConfig.especifico) 
-      : 0;
-    const prorrateoPagaExtra = (basePagaExtra * multiplier) / 6;
-
-    const baseCotizacionCC = totalDevengado + prorrateoPagaExtra;
-    const baseCotizacionCP = totalDevengado + prorrateoPagaExtra; // En este caso coinciden
-
-    // 7. Deducciones
-    const deduccionIrpf = totalDevengado * (input.irpf / 100);
-    
-    // Seguridad Social Detallada (aplicada sobre las bases de cotización)
-    const ssConfig = (ssData as any).regimenGeneral;
-    const deduccionCC = baseCotizacionCC * (ssConfig.contingenciasComunes.trabajador / 100);
-    const deduccionDesempleo = baseCotizacionCP * (ssConfig.desempleo.trabajador / 100);
-    const deduccionFP = baseCotizacionCP * (ssConfig.formacionProfesional.trabajador / 100);
-    
-    const deduccionSS = deduccionCC + deduccionDesempleo + deduccionFP;
-    const totalDeducciones = deduccionIrpf + deduccionSS;
-
-    const peSueldo = (pagaExtraConfig?.base || 0) * multiplier;
-    const peTrienios = totalTrieniosExtra * multiplier;
-    const peSexenios = totalSexeniosExtraBase * multiplier;
-    const peDestino = (pagaExtraConfig?.destino || 0) * multiplier;
-    const peEspecifico = (pagaExtraConfig?.especifico || 0) * multiplier;
-
-    const pagaExtraBruta = peSueldo + peTrienios + peSexenios + peDestino + peEspecifico;
-    const pagaExtraIrpf = pagaExtraBruta * (input.irpf / 100);
-    const pagaExtraNeta = pagaExtraBruta - pagaExtraIrpf;
-
+    const extra = config.pagaExtra;
+    // La extra depende del semestre devengado, no de los días trabajados en este mes.
+    const extraFactor = jornada * devengoExtra;
+    const peSueldo = money(extra.base * extraFactor);
+    const peTrienios = money(input.trienios * extra.trienios * extraFactor);
+    const peSexenios = money(extraSexenio * extraFactor);
+    const peDestino = money(extra.destino * extraFactor);
+    const peEspecifico = money(extra.especifico * extraFactor);
+    const pagaExtraBruta = sum(peSueldo, peTrienios, peSexenios, peDestino, peEspecifico);
+    const prorrata = money((extra.base + input.trienios * extra.trienios + extraSexenio + extra.destino + extra.especifico) * multiplier / 6);
+    const baseSinTope = sum(totalDevengado, -itinerancia, prorrata);
+    const maxBase = money(5101.20 * factorDias);
+    const minBase = money((grupoA1 ? 1989.30 : 1649.70) * multiplier);
+    const baseCotizacionCC = pasivos ? 0 : money(Math.min(maxBase, Math.max(minBase, baseSinTope)));
+    const baseCotizacionCP = pasivos ? 0 : money(Math.min(maxBase, Math.max(1424.40 * multiplier, baseSinTope)));
+    const ss = ssData.regimenGeneral;
+    // El 4,85% de la guía agrupa el 4,70% CC y el 0,15% MEI.
+    const deduccionCC = money(baseCotizacionCC * ss.contingenciasComunes.trabajador / 100);
+    const deduccionDesempleo = money(baseCotizacionCP * ss.desempleo.trabajador / 100);
+    const deduccionFP = money(baseCotizacionCP * ss.formacionProfesional.trabajador / 100);
+    const exceso = Math.max(0, baseSinTope - maxBase);
+    const solidaridad = pasivos ? 0 : money(Math.min(exceso, maxBase * .1) * .0019 + Math.min(Math.max(0, exceso - maxBase * .1), maxBase * .4) * .0021 + Math.max(0, exceso - maxBase * .5) * .0024);
+    const muface = pasivos ? money((grupoA1 ? 51.68 : 40.68) * factorDias) : 0;
+    const cuotaPasivos = pasivos ? money((grupoA1 ? 118.04 : 92.90) * factorDias) : 0;
+    const deduccionSS = sum(deduccionCC, deduccionDesempleo, deduccionFP, solidaridad, muface, cuotaPasivos);
+    const baseIRPF = sum(totalDevengado, -itinerancia);
+    const deduccionIrpf = money(baseIRPF * input.irpf / 100);
+    const totalDeducciones = sum(deduccionIrpf, deduccionSS);
+    const pagaExtraIrpf = money(pagaExtraBruta * input.irpf / 100);
+    const pagaExtraCuotas = pasivos ? money(((grupoA1 ? 51.68 + 118.04 : 40.68 + 92.90)) * devengoExtra) : 0;
     return {
-      input,
-      totalDevengado,
-      totalDeducciones,
-      salarioNeto: totalDevengado - totalDeducciones,
-      pagaExtraBruta,
-      pagaExtraIrpf,
-      pagaExtraNeta,
-      pagaExtraDetalle: {
-        sueldoBase: peSueldo,
-        trienios: peTrienios,
-        sexenios: peSexenios,
-        destino: peDestino,
-        especifico: peEspecifico
-      },
-      detalleDevengos: {
-        sueldoBase,
-        trienios,
-        sexenios,
-        complementoDestino,
-        complementoEspecifico,
-        residencia,
-        cargoDirectivo,
-        otrosCargos,
-        reduccionCompatibilidad,
-        otrosCargosList
-      },
+      input, totalDevengado, totalDeducciones, salarioNeto: sum(totalDevengado, -totalDeducciones),
+      pagaExtraBruta, pagaExtraIrpf, pagaExtraCuotas, pagaExtraNeta: sum(pagaExtraBruta, -pagaExtraIrpf, -pagaExtraCuotas),
+      pagaExtraDetalle: { sueldoBase: peSueldo, trienios: peTrienios, sexenios: peSexenios, destino: peDestino, especifico: peEspecifico },
+      detalleDevengos: { sueldoBase, trienios, sexenios, complementoDestino, complementoEspecifico, residencia, cargoDirectivo, otrosCargos, reduccionCompatibilidad, otrosCargosList },
       detalleDeducciones: {
-        irpf: deduccionIrpf,
-        seguridadSocial: deduccionSS,
-        baseIRPF: totalDevengado,
-        basesCotizacion: {
-          contingenciasComunes: baseCotizacionCC,
-          contingenciasProfesionales: baseCotizacionCP
-        },
-        seguridadSocialDetalle: {
-          contingenciasComunes: deduccionCC,
-          desempleo: deduccionDesempleo,
-          formacionProfesional: deduccionFP
-        }
+        irpf: deduccionIrpf, seguridadSocial: deduccionSS, baseIRPF,
+        basesCotizacion: { contingenciasComunes: baseCotizacionCC, contingenciasProfesionales: baseCotizacionCP },
+        seguridadSocialDetalle: { contingenciasComunes: deduccionCC, desempleo: deduccionDesempleo, formacionProfesional: deduccionFP, solidaridad, muface, pasivos: cuotaPasivos }
       }
     };
   }
