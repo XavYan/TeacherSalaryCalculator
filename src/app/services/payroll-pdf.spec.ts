@@ -7,7 +7,7 @@ import complementos from '../../assets/data/complementos.json';
 
 export const exampleInput: PayrollInput = {
   cuerpo: 'Secundaria', isla: 'Tenerife', mes: 10, anio: 2026, diasTrabajados: 30,
-  horasSemanales: 18, porcentajeJornada: 100, porcentajeDevengoExtra: 100,
+  horasSemanales: 18, porcentajeJornada: 100, fechaInicioContrato: '2025-12-01', fechaFinContrato: '2026-11-30',
   cargoDirectivo: 'Dirección', familiaCentro: 'Secundaria, Medias, Artísticas, A distancia y EEOOII', tipoCentro: 'A',
   complementos: ['Coordinación de Orientación Profesional', 'Itinerancia (€/km)'],
   cantidadesComplementos: {'Itinerancia (€/km)': 125}, irpf: 15, trienios: 2, sexenios: 1,
@@ -30,6 +30,17 @@ describe('Exportación de la simulación a PDF', () => {
     expect(written).toContain('Clases Pasivas');
     expect(JSON.stringify(result)).toBe(before);
     expect(payrollPdfFilename(result)).toBe('simulacion-nomina-2026-10.pdf');
+  });
+  it('exporta ambas pagas con sus porcentajes calculados y las fechas del contrato', () => {
+    const result = new PayrollService().calculatePayroll({ ...exampleInput, fechaInicioContrato:'2026-09-15', fechaFinContrato:'2027-08-31' });
+    const doc = new jsPDF(), spy = vi.spyOn(doc,'text');
+    buildPayrollPdf(doc,result);
+    const written = JSON.stringify(spy.mock.calls);
+    expect(written).toContain('Paga extraordinaria de Junio 2026');
+    expect(written).toContain('Paga extraordinaria de Diciembre 2026');
+    expect(written).toContain('42,22%');
+    expect(written).toContain('0%');
+    expect(written).toContain('15/09/2026 - 31/08/2027');
   });
   it('pagina listas extensas y conserva el último complemento y las notas', () => {
     const input = { ...exampleInput, complementos: Object.keys(complementos['otros cargos']), cantidadesComplementos: {

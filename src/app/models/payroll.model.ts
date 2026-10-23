@@ -1,6 +1,7 @@
 export interface PayrollInput {
   porcentajeJornada?: number;
-  porcentajeDevengoExtra?: number;
+  fechaInicioContrato: string;
+  fechaFinContrato: string;
   familiaCentro?: string;
   cantidadesComplementos?: Record<string, number>;
   regimen?: "general" | "pasivos";
@@ -27,17 +28,7 @@ export interface PayrollResult {
   totalDevengado: number;
   totalDeducciones: number;
   salarioNeto: number;
-  pagaExtraBruta: number;
-  pagaExtraIrpf: number;
-  pagaExtraNeta: number;
-  pagaExtraCuotas: number;
-  pagaExtraDetalle: {
-    sueldoBase: number;
-    trienios: number;
-    sexenios: number;
-    destino: number;
-    especifico: number;
-  };
+  pagasExtra: PayrollExtra[];
   detalleDevengos: {
     sueldoBase: number;
     trienios: number;
@@ -66,5 +57,25 @@ export interface PayrollResult {
       muface: number;
       pasivos: number;
     };
+  };
+}
+
+export interface PayrollExtra {
+  nombre: string;
+  mesPago: 6 | 12;
+  periodoInicio: string;
+  periodoFin: string;
+  diasEquivalentes: number;
+  porcentajeDevengo: number;
+  pagaExtraBruta: number;
+  pagaExtraIrpf: number;
+  pagaExtraNeta: number;
+  pagaExtraCuotas: number;
+  pagaExtraDetalle: {
+    sueldoBase: number;
+    trienios: number;
+    sexenios: number;
+    destino: number;
+    especifico: number;
   };
 }

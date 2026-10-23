@@ -144,9 +144,17 @@ interface SalaryData {
       </div>
 
       <div class="col-md-6">
-        <label class="form-label fw-bold">Devengo de la paga extra (%)</label>
-        <input type="number" formControlName="porcentajeDevengoExtra" min="0" max="100" class="form-control">
-        <div class="form-text">100% si has devengado todo el semestre. Es independiente de los días de este mes y se aplica además de la jornada.</div>
+        <label for="fechaInicioContrato" class="form-label fw-bold">Fecha de inicio del contrato</label>
+        <input id="fechaInicioContrato" type="date" formControlName="fechaInicioContrato" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label for="fechaFinContrato" class="form-label fw-bold">Fecha de fin del contrato (incluida)</label>
+        <input id="fechaFinContrato" type="date" formControlName="fechaFinContrato" [min]="payrollForm.get('fechaInicioContrato')?.value" class="form-control" required>
+      </div>
+      <div class="col-12 small text-muted">
+        Estas fechas calculan las dos extras del año seleccionado: junio (1 de diciembre anterior a 31 de mayo) y diciembre (1 de junio a 30 de noviembre).
+        Se estima todo el contrato indicado, incluidos los días futuros. La jornada indicada se aplica a ambas extras.
+        Para la nómina ordinaria, indica los días retribuidos del mes en su campo correspondiente.
       </div>
       <div class="col-md-6">
         <label class="form-label fw-bold">Régimen de cotización</label>
@@ -398,7 +406,8 @@ export class PayrollForm {
     anio: [2026, [Validators.required, Validators.min(2026), Validators.max(2026)]],
     diasTrabajados: [30, [Validators.required, Validators.min(1), Validators.max(30)]],
     porcentajeJornada: [100, [Validators.required, Validators.min(0.01), Validators.max(100)]],
-    porcentajeDevengoExtra: [100, [Validators.required, Validators.min(0), Validators.max(100)]],
+    fechaInicioContrato: ['', Validators.required],
+    fechaFinContrato: ['', Validators.required],
     regimen: ['general'],
     familiaCentro: ['Secundaria, Medias, Artísticas, A distancia y EEOOII'],
     cantidadesComplementos: [{}],
@@ -410,7 +419,7 @@ export class PayrollForm {
     cargoDirectivo: [''],
     tipoCentro: ['D'],
     complementos: [[]],
-    irpf: [15, [Validators.required, Validators.min(0), Validators.max(100)]]
+    irpf: [20, [Validators.required, Validators.min(0), Validators.max(100)]]
   });
 
   onCuerpoChange() {
@@ -460,6 +469,10 @@ export class PayrollForm {
   onSubmit() {
     if (this.payrollForm.valid) {
       const value = this.payrollForm.value;
+      if (value.fechaFinContrato < value.fechaInicioContrato) {
+        this.formError = 'La fecha de fin del contrato debe ser igual o posterior a la de inicio.';
+        return;
+      }
       if (!Number.isInteger(value.trienios) || !Number.isInteger(value.sexenios) ||
           (value.compatibilidadPrivada && (value.diasCompatibilidad > value.diasTrabajados || value.importeReduccionCompatibilidad > (this.selectedSalary()?.especifico ?? 0)))) {
         this.formError = 'Revisa los trienios y sexenios (números enteros), y los días e importe de compatibilidad.';

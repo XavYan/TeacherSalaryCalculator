@@ -5,7 +5,7 @@ import complementos from '../../assets/data/complementos.json';
 const base: PayrollInput = {
   cuerpo: 'Secundaria', isla: 'Tenerife', mes: 10, anio: 2026,
   diasTrabajados: 30, horasSemanales: 18, porcentajeJornada: 100,
-  porcentajeDevengoExtra: 100, cargoDirectivo: '', tipoCentro: 'D',
+  fechaInicioContrato: '2025-12-01', fechaFinContrato: '2026-11-30', cargoDirectivo: '', tipoCentro: 'D',
   familiaCentro: 'Secundaria, Medias, Artísticas, A distancia y EEOOII',
   complementos: [], irpf: 15, trienios: 0, sexenios: 0,
   compatibilidadPrivada: false, diasCompatibilidad: 0, regimen: 'general'
@@ -24,16 +24,16 @@ describe('Auditoría de la guía STEC-IC febrero 2026', () => {
     it(`coincide al céntimo con la fila ${cuerpo}`, () => {
       expect(calc({ cuerpo }).totalDevengado).toBe(cap);
       expect(calc({ cuerpo, isla: 'La Palma' }).totalDevengado).toBe(noCap);
-      expect(calc({ cuerpo }).pagaExtraBruta).toBe(extra);
+      expect(calc({ cuerpo }).pagasExtra[0].pagaExtraBruta).toBe(extra);
       expect(calc({ cuerpo, trienios: 2 }).detalleDevengos.trienios).toBeCloseTo(trienio * 2, 2);
       expect(calc({ cuerpo, trienios: 2, isla: 'La Palma' }).detalleDevengos.trienios).toBeCloseTo((trienio + suplemento) * 2, 2);
-      expect(calc({ cuerpo, trienios: 2 }).pagaExtraDetalle.trienios).toBeCloseTo(trExtra * 2, 2);
+      expect(calc({ cuerpo, trienios: 2 }).pagasExtra[0].pagaExtraDetalle.trienios).toBeCloseTo(trExtra * 2, 2);
     });
   }
   for (const [i, mensual] of [0,55,119,239,419,489].entries()) {
     it(`sexenios ${i}: importe acumulado y extra del 78%`, () => {
       expect(calc({ sexenios: i }).detalleDevengos.sexenios).toBe(mensual);
-      expect(calc({ sexenios: i }).pagaExtraDetalle.sexenios).toBeCloseTo(mensual * .78, 2);
+      expect(calc({ sexenios: i }).pagasExtra[0].pagaExtraDetalle.sexenios).toBeCloseTo(mensual * .78, 2);
     });
   }
   const roles = ['Dirección','Jefatura de Estudios','Secretaría','Vicedirección','Jefatura Adjunta'];
@@ -64,9 +64,19 @@ describe('Auditoría de la guía STEC-IC febrero 2026', () => {
   it('prorratea días y jornada sin confundirlos con el semestre de la extra', () => {
     const r = calc({ diasTrabajados: 15, porcentajeJornada: 50 });
     expect(r.detalleDevengos.sueldoBase).toBe(346.81);
-    expect(r.pagaExtraBruta).toBe(1097.45);
-    expect(calc({ diasTrabajados: 15 }).pagaExtraBruta).toBe(2194.88);
-    expect(calc({ porcentajeDevengoExtra: 50 }).pagaExtraBruta).toBe(1097.45);
+    expect(r.pagasExtra[0].pagaExtraBruta).toBe(1097.45);
+    expect(calc({ diasTrabajados: 15 }).pagasExtra[0].pagaExtraBruta).toBe(2194.88);
+    expect(calc({ fechaInicioContrato: '2026-03-01' }).pagasExtra[0].pagaExtraBruta).toBe(1097.45);
+  });
+  it('separa junio sin devengo y diciembre parcial sin alterar la prorrata mensual', () => {
+    const r = calc({ fechaInicioContrato:'2026-09-15', fechaFinContrato:'2027-08-31', irpf:20 });
+    expect(r.pagasExtra).toHaveLength(2);
+    expect(r.pagasExtra[0].pagaExtraNeta).toBe(0);
+    expect(r.pagasExtra[1].porcentajeDevengo).toBeCloseTo(42.222222,5);
+    expect(r.pagasExtra[1].pagaExtraBruta).toBe(926.72);
+    expect(r.pagasExtra[1].pagaExtraIrpf).toBe(185.34);
+    expect(r.pagasExtra[1].pagaExtraNeta).toBe(741.38);
+    expect(r.detalleDeducciones.basesCotizacion).toEqual(calc().detalleDeducciones.basesCotizacion);
   });
   it('calcula kilómetros y horas realizados, sin doble proporcionalidad ni duplicados', () => {
     const km = 'Itinerancia (€/km)', hora = 'Hora lectiva complementaria Grupo A1';
@@ -83,7 +93,7 @@ describe('Auditoría de la guía STEC-IC febrero 2026', () => {
   it.each(['Maestras/os', 'Secundaria'])('MUFACE/Clases Pasivas %s y doble cuota en extra', cuerpo => {
     const r = calc({ cuerpo, regimen: 'pasivos' });
     expect(r.detalleDeducciones.seguridadSocial).toBe(cuerpo === 'Secundaria' ? 169.72 : 133.58);
-    expect(r.pagaExtraCuotas).toBe(cuerpo === 'Secundaria' ? 169.72 : 133.58);
+    expect(r.pagasExtra[0].pagaExtraCuotas).toBe(cuerpo === 'Secundaria' ? 169.72 : 133.58);
     expect(r.detalleDeducciones.seguridadSocialDetalle.desempleo).toBe(0);
   });
   it('usa la reducción individual autorizada y limita los días al periodo trabajado', () => {

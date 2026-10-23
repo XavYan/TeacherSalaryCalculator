@@ -8,6 +8,20 @@ describe('Selección del equipo directivo', () => {
     fixture.detectChanges();
     return fixture;
   };
+  it('inicia IRPF al 20% y exige ambas fechas del contrato', async () => {
+    const form = (await setup()).componentInstance;
+    expect(form.payrollForm.value.irpf).toBe(20);
+    expect(form.payrollForm.get('fechaInicioContrato')?.hasError('required')).toBe(true);
+    expect(form.payrollForm.get('fechaFinContrato')?.hasError('required')).toBe(true);
+  });
+  it('rechaza contratos con fin anterior al inicio', async () => {
+    const form = (await setup()).componentInstance;
+    let emits = 0; form.calculate.subscribe(()=>emits++);
+    form.payrollForm.patchValue({ cuerpo:'Secundaria', isla:'Tenerife', fechaInicioContrato:'2026-09-01', fechaFinContrato:'2026-08-31' });
+    form.onSubmit();
+    expect(emits).toBe(0);
+    expect(form.formError).toContain('posterior');
+  });
   it('muestra los umbrales, todas las familias y el importe de Secundaria', async () => {
     const fixture = await setup(), form = fixture.componentInstance;
     form.payrollForm.patchValue({ cargoDirectivo:'Dirección', tipoCentro:'A' });
@@ -43,7 +57,7 @@ describe('Selección del equipo directivo', () => {
   it('no emite cálculo con antigüedad fraccionaria ni año sin tablas', async () => {
     const form = (await setup()).componentInstance;
     let emits = 0; form.calculate.subscribe(()=>emits++);
-    form.payrollForm.patchValue({ cuerpo:'Secundaria', isla:'Tenerife', trienios:1.5 });
+    form.payrollForm.patchValue({ cuerpo:'Secundaria', isla:'Tenerife', trienios:1.5, fechaInicioContrato:'2025-12-01', fechaFinContrato:'2026-11-30' });
     form.onSubmit(); expect(emits).toBe(0); expect(form.formError).toBeTruthy();
     form.payrollForm.patchValue({ trienios:1, anio:2027 });
     form.onSubmit(); expect(emits).toBe(0);

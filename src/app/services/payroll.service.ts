@@ -1,3 +1,4 @@
+import { contractExtraAccrual } from './extra-accrual';
 import { Injectable } from '@angular/core';
 import { PayrollInput, PayrollResult } from '../models/payroll.model';
 import salariosData from '../../assets/data/salarios.json';
@@ -21,8 +22,8 @@ export class PayrollService {
       throw new Error('Revise los datos: las tablas disponibles corresponden a 2026.');
     }
     const jornada = input.porcentajeJornada === undefined ? input.horasSemanales / 18 : input.porcentajeJornada / 100;
-    const devengoExtra = (input.porcentajeDevengoExtra ?? 100) / 100;
-    if (!range(jornada, 0.0001, 1) || !range(devengoExtra, 0, 1)) throw new Error('Porcentaje de jornada o devengo extra inválido.');
+    const devengos = contractExtraAccrual(input.anio, input.fechaInicioContrato, input.fechaFinContrato);
+    if (!range(jornada, 0.0001, 1)) throw new Error('Porcentaje de jornada inválido.');
     const factorDias = input.diasTrabajados / 30;
     const multiplier = factorDias * jornada;
     const capitalina = ['Gran Canaria', 'Tenerife'].includes(input.isla);
@@ -65,14 +66,22 @@ export class PayrollService {
     const totalDevengado = sum(sueldoBase, trienios, sexenios, complementoDestino, complementoEspecifico, residencia, cargoDirectivo, otrosCargos, -reduccionCompatibilidad);
 
     const extra = config.pagaExtra;
-    // La extra depende del semestre devengado, no de los días trabajados en este mes.
-    const extraFactor = jornada * devengoExtra;
-    const peSueldo = money(extra.base * extraFactor);
-    const peTrienios = money(input.trienios * extra.trienios * extraFactor);
-    const peSexenios = money(extraSexenio * extraFactor);
-    const peDestino = money(extra.destino * extraFactor);
-    const peEspecifico = money(extra.especifico * extraFactor);
-    const pagaExtraBruta = sum(peSueldo, peTrienios, peSexenios, peDestino, peEspecifico);
+    const pagasExtra = devengos.map(devengo => {
+      // Calculamos con la fracción exacta de días; el porcentaje se redondea solo al mostrarlo.
+      const factor = jornada * devengo.diasEquivalentes / 180;
+      const detalle = {
+        sueldoBase: money(extra.base * factor),
+        trienios: money(input.trienios * extra.trienios * factor),
+        sexenios: money(extraSexenio * factor),
+        destino: money(extra.destino * factor),
+        especifico: money(extra.especifico * factor)
+      };
+      const pagaExtraBruta = sum(...Object.values(detalle));
+      const pagaExtraIrpf = money(pagaExtraBruta * input.irpf / 100);
+      const pagaExtraCuotas = pasivos ? money((grupoA1 ? 51.68 + 118.04 : 40.68 + 92.90) * devengo.diasEquivalentes / 180) : 0;
+      return { ...devengo, pagaExtraBruta, pagaExtraIrpf, pagaExtraCuotas,
+        pagaExtraNeta: sum(pagaExtraBruta, -pagaExtraIrpf, -pagaExtraCuotas), pagaExtraDetalle: detalle };
+    });
     const prorrata = money((extra.base + input.trienios * extra.trienios + extraSexenio + extra.destino + extra.especifico) * multiplier / 6);
     const baseSinTope = sum(totalDevengado, -itinerancia, prorrata);
     const maxBase = money(5101.20 * factorDias);
@@ -92,12 +101,8 @@ export class PayrollService {
     const baseIRPF = sum(totalDevengado, -itinerancia);
     const deduccionIrpf = money(baseIRPF * input.irpf / 100);
     const totalDeducciones = sum(deduccionIrpf, deduccionSS);
-    const pagaExtraIrpf = money(pagaExtraBruta * input.irpf / 100);
-    const pagaExtraCuotas = pasivos ? money(((grupoA1 ? 51.68 + 118.04 : 40.68 + 92.90)) * devengoExtra) : 0;
     return {
-      input, totalDevengado, totalDeducciones, salarioNeto: sum(totalDevengado, -totalDeducciones),
-      pagaExtraBruta, pagaExtraIrpf, pagaExtraCuotas, pagaExtraNeta: sum(pagaExtraBruta, -pagaExtraIrpf, -pagaExtraCuotas),
-      pagaExtraDetalle: { sueldoBase: peSueldo, trienios: peTrienios, sexenios: peSexenios, destino: peDestino, especifico: peEspecifico },
+      input, totalDevengado, totalDeducciones, salarioNeto: sum(totalDevengado, -totalDeducciones), pagasExtra,
       detalleDevengos: { sueldoBase, trienios, sexenios, complementoDestino, complementoEspecifico, residencia, cargoDirectivo, otrosCargos, reduccionCompatibilidad, otrosCargosList },
       detalleDeducciones: {
         irpf: deduccionIrpf, seguridadSocial: deduccionSS, baseIRPF,

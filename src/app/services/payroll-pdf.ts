@@ -5,6 +5,8 @@ import complementos from '../../assets/data/complementos.json';
 
 const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const clean = (value: string) => value.replace(/[\u2010-\u2015]/g, '-').replace(/[\u00a0\u202f]/g, ' ');
+const dateLabel = (value: string) => value.split('-').reverse().join('/');
+const percent = (value: number) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(value);
 const euro = (value: number) => clean(new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value));
 export const payrollPdfFilename = (r: PayrollResult) => `simulacion-nomina-${r.input.anio}-${String(r.input.mes).padStart(2, '0')}.pdf`;
 
@@ -14,7 +16,7 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal');
   doc.addFileToVFS('DejaVuSans-Bold.ttf', bold);
   doc.addFont('DejaVuSans-Bold.ttf', 'DejaVuSans', 'bold');
-  const input = r.input, d = r.detalleDevengos, c = r.detalleDeducciones, extra = r.pagaExtraDetalle;
+  const input = r.input, d = r.detalleDevengos, c = r.detalleDeducciones;
   const left = 18, right = 192, bottom = 273;
   let y = 0;
   const text = (value: string, x: number, at: number, options = {}) => doc.text(clean(value), x, at, options);
@@ -57,12 +59,13 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   amount('Bruto ordinario', r.totalDevengado);
   amount('Deducciones ordinarias', r.totalDeducciones);
   amount('Neto ordinario mensual', r.salarioNeto, true);
-  amount('Paga extra neta estimada (separada del neto ordinario)', r.pagaExtraNeta, true);
+  for (const extra of r.pagasExtra) amount(`Extra de ${extra.nombre} - neto (${percent(extra.porcentajeDevengo)}% de devengo)`, extra.pagaExtraNeta, true);
   section('Datos de la simulación');
   row('Cuerpo', input.cuerpo); row('Isla', input.isla);
   row('Días retribuidos / jornada', `${input.diasTrabajados} días / ${input.porcentajeJornada ?? input.horasSemanales / 18 * 100}%`);
   row('Trienios / sexenios', `${input.trienios} / ${input.sexenios}`);
-  row('Retención IRPF / devengo semestral de extra', `${input.irpf}% / ${input.porcentajeDevengoExtra ?? 100}%`);
+  row('Retención IRPF', `${input.irpf}%`);
+  row('Contrato - inicio y fin incluidos', `${dateLabel(input.fechaInicioContrato)} - ${dateLabel(input.fechaFinContrato)}`);
   row('Régimen', input.regimen === 'pasivos' ? 'MUFACE y Clases Pasivas' : 'Régimen General (interinos)');
   if (input.cargoDirectivo) {
     row('Familia de centro', input.familiaCentro ?? '');
@@ -101,19 +104,28 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   amount('Cotizaciones y cuotas - subtotal', c.seguridadSocial);
   amount('Total deducciones ordinarias', r.totalDeducciones, true);
   amount('Neto ordinario mensual', r.salarioNeto, true);
-  section('Paga extraordinaria estimada');
-  amount('Sueldo base extra', extra.sueldoBase); amount('Trienios extra', extra.trienios);
-  amount('Sexenios extra', extra.sexenios); amount('Complemento de destino extra', extra.destino);
-  amount('Complemento específico extra', extra.especifico);
-  amount('Bruto de la extra', r.pagaExtraBruta, true);
-  amount(`Retención IRPF de la extra (${input.irpf}%)`, r.pagaExtraIrpf);
-  amount('Cuotas adicionales MUFACE / Clases Pasivas', r.pagaExtraCuotas);
-  amount('Neto de la extra', r.pagaExtraNeta, true);
+  for (const paga of r.pagasExtra) {
+    const extra = paga.pagaExtraDetalle;
+    section(`Paga extraordinaria de ${paga.nombre} ${input.anio}`, 38);
+    row('Devengo de esta paga', `${percent(paga.porcentajeDevengo)}%`);
+    row('Periodo de devengo', `${dateLabel(paga.periodoInicio)} - ${dateLabel(paga.periodoFin)}`);
+    row('Días equivalentes (mes natural completo = 30)', `${paga.diasEquivalentes} / 180`);
+    amount('Sueldo base extra', extra.sueldoBase); amount('Trienios extra', extra.trienios);
+    amount('Sexenios extra', extra.sexenios); amount('Complemento de destino extra', extra.destino);
+    amount('Complemento específico extra', extra.especifico);
+    amount('Bruto de la extra', paga.pagaExtraBruta, true);
+    amount(`Retención IRPF de la extra (${input.irpf}%)`, paga.pagaExtraIrpf);
+    amount('Cuotas adicionales MUFACE / Clases Pasivas', paga.pagaExtraCuotas);
+    amount('Neto de la extra', paga.pagaExtraNeta, true);
+  }
   section('Alcance y fuentes', 80);
   paragraph('Simulación informativa, sin validez de nómina oficial. Los importes corresponden a la última simulación calculada, con el porcentaje de IRPF indicado por el usuario.');
-  paragraph('La extra se muestra separada del neto ordinario y depende del devengo semestral y la jornada indicados. Incluye los conceptos desglosados en la guía; no incluye extras de cargos u otros complementos.');
+  paragraph('Las dos extras se muestran separadas del neto ordinario. El contrato completo indicado determina cada devengo: meses naturales completos / 6 y días de meses incompletos / 180, máximo 100%. Se aplica además la jornada indicada. Incluye los conceptos desglosados en la guía; no incluye extras de cargos u otros complementos.');
   paragraph('En Régimen General las extras cotizan mediante prorrata mensual. En MUFACE/Clases Pasivas se contemplan cuotas adicionales en las extras. El régimen mixto MUFACE + pensiones del Régimen General no está incluido.');
   paragraph('Cambios de jornada, nombramiento o complementos durante el semestre, atrasos, liquidaciones y bases particulares a jornada parcial requieren cálculo individual. La itinerancia presupone desplazamientos justificados dentro de los límites exentos.');
+  paragraph('Los importes futuros son previsiones. Al cese la parte devengada puede abonarse en la liquidación. Los días de diciembre generan devengo para junio del año siguiente, fuera de las dos extras mostradas.');
+  paragraph('Devengo: guía RRHH de la Intervención General de Canarias, II.4.B, apartado 5.2.');
+  paragraph('https://www.gobiernodecanarias.org/hacienda/intervencion/servicios/guia_rrhh/libro2/ii4b.jsp');
   paragraph('Importes: guía STEC-IC, febrero de 2026. Cotizaciones: Orden PJC/297/2026.');
   const source = 'https://www.stec.es/stec/archivos_subidos/gal_descargas/2/_214.pdf';
   paragraph(source);

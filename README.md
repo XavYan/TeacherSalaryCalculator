@@ -66,3 +66,5 @@ npm run build -- --base-href /TeacherSalaryCalculator/
 ## Exportar simulaciones
 
 Después de calcular, pulsa **Descargar simulación en PDF** en el resultado. El documento incluye los parámetros, devengos, bases, deducciones, neto ordinario y extra de la última simulación calculada. Se genera en el navegador con texto seleccionable, fuentes incorporadas y paginación automática. El generador se carga al pulsar el botón.
+
+Las fechas de inicio y fin de contrato calculan por separado las extras de junio y diciembre del año de simulación, con su periodo y porcentaje de devengo. La fecha de fin se incluye en el cómputo. El IRPF inicial es del 20%, editable.

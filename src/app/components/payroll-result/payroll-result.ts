@@ -13,7 +13,7 @@ import { PayrollResult } from '../../models/payroll.model';
           <h4 class="mb-0">Resumen de la Nómina</h4>
         </div>
         <div class="card-body p-4">
-          <div class="d-flex justify-content-end mb-3">
+          <div class="d-flex justify-content-center mb-3">
             <button type="button" class="btn btn-outline-primary" (click)="downloadPdf()" [disabled]="generatingPdf()" [attr.aria-busy]="generatingPdf()">
               <i class="bi bi-file-earmark-pdf me-2" aria-hidden="true"></i>{{ generatingPdf() ? 'Generando PDF…' : 'Descargar simulación en PDF' }}
             </button>
@@ -23,9 +23,9 @@ import { PayrollResult } from '../../models/payroll.model';
             <div class="col-12">
               <span class="text-muted text-uppercase small fw-bold">Salario Neto Mensual</span>
               <h2 class="display-4 text-success fw-bold mb-0">{{ result.salarioNeto | currency:'EUR' }}</h2>
-              <div class="mt-2 text-muted animate__animated animate__fadeIn">
-                <span class="x-small text-uppercase fw-bold">Paga Extra Neta:</span>
-                <span class="ms-2 fw-medium text-primary">{{ result.pagaExtraNeta | currency:'EUR' }}</span>
+              <div *ngFor="let extra of result.pagasExtra" class="mt-2 text-muted animate__animated animate__fadeIn">
+                <span class="x-small text-uppercase fw-bold">Extra de {{ extra.nombre }} ({{ extra.porcentajeDevengo | number:'1.0-2' }}%):</span>
+                <span class="ms-2 fw-medium text-primary">{{ extra.pagaExtraNeta | currency:'EUR' }}</span>
               </div>
             </div>
           </div>
@@ -164,56 +164,66 @@ import { PayrollResult } from '../../models/payroll.model';
             </div>
           </div>
 
+          <div class="mt-4 small text-muted">
+            Contrato: {{ formatDate(result.input.fechaInicioContrato) }} - {{ formatDate(result.input.fechaFinContrato) }}.
+            Cada mes natural completo aporta 1/6 y cada día de un mes incompleto 1/180 (máximo 100%).
+            Al finalizar el contrato, la parte devengada puede abonarse en la liquidación. Los días de diciembre corresponden a la extra de junio del año siguiente.
+          </div>
           <!-- Información Paga Extra -->
-          <div class="mt-4 card border-0 bg-white shadow-sm overflow-hidden">
+          <div *ngFor="let extra of result.pagasExtra" class="mt-4 card border-0 bg-white shadow-sm overflow-hidden">
             <div class="card-header bg-primary text-white py-2 px-3 border-0">
-              <span class="small fw-bold text-uppercase">Desglose Paga Extra (Estimada)</span>
+              <span class="small fw-bold text-uppercase">Paga Extra de {{ extra.nombre }} {{ result.input.anio }} (Estimada)</span>
             </div>
             <div class="card-body p-0">
+              <div class="p-3 bg-light border-bottom small">
+                <strong>Devengo: {{ extra.porcentajeDevengo | number:'1.0-2' }}%</strong>
+                <div>Periodo: {{ formatDate(extra.periodoInicio) }} - {{ formatDate(extra.periodoFin) }}</div>
+                <div>{{ extra.diasEquivalentes }} / 180 días equivalentes (meses completos de 30 días).</div>
+              </div>
               <ul class="list-group list-group-flush">
                 <li class="list-group-item bg-light py-1 px-3">
                   <span class="x-small text-muted fw-bold text-uppercase">Desglose del Bruto (Extra)</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
                   <span class="fst-italic">Sueldo Base Extra</span>
-                  <span>{{ result.pagaExtraDetalle.sueldoBase | currency:'EUR' }}</span>
+                  <span>{{ extra.pagaExtraDetalle.sueldoBase | currency:'EUR' }}</span>
                 </li>
-                <li *ngIf="result.pagaExtraDetalle.trienios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                <li *ngIf="extra.pagaExtraDetalle.trienios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
                   <span class="fst-italic">Trienios Extra</span>
-                  <span>{{ result.pagaExtraDetalle.trienios | currency:'EUR' }}</span>
+                  <span>{{ extra.pagaExtraDetalle.trienios | currency:'EUR' }}</span>
                 </li>
-                <li *ngIf="result.pagaExtraDetalle.sexenios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
+                <li *ngIf="extra.pagaExtraDetalle.sexenios > 0" class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
                   <span class="fst-italic">Sexenios Extra</span>
-                  <span>{{ result.pagaExtraDetalle.sexenios | currency:'EUR' }}</span>
+                  <span>{{ extra.pagaExtraDetalle.sexenios | currency:'EUR' }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
                   <span class="fst-italic">C. Destino Extra</span>
-                  <span>{{ result.pagaExtraDetalle.destino | currency:'EUR' }}</span>
+                  <span>{{ extra.pagaExtraDetalle.destino | currency:'EUR' }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-4 border-0 small opacity-75">
                   <span class="fst-italic">C. Específico Extra</span>
-                  <span>{{ result.pagaExtraDetalle.especifico | currency:'EUR' }}</span>
+                  <span>{{ extra.pagaExtraDetalle.especifico | currency:'EUR' }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small bg-white border-top">
                   <span class="fw-bold">Total Bruto Extra</span>
-                  <span class="fw-bold">{{ result.pagaExtraBruta | currency:'EUR' }}</span>
+                  <span class="fw-bold">{{ extra.pagaExtraBruta | currency:'EUR' }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 small">
                   <span>Deducción IRPF ({{ result.input.irpf }}%)</span>
-                  <span class="text-danger">-{{ result.pagaExtraIrpf | currency:'EUR' }}</span>
+                  <span class="text-danger">-{{ extra.pagaExtraIrpf | currency:'EUR' }}</span>
                 </li>
-                <li *ngIf="result.pagaExtraCuotas > 0" class="list-group-item d-flex justify-content-between small">
-                  <span>Cuotas adicionales MUFACE y Clases Pasivas</span><span>-{{ result.pagaExtraCuotas | currency:'EUR' }}</span>
+                <li *ngIf="extra.pagaExtraCuotas > 0" class="list-group-item d-flex justify-content-between small">
+                  <span>Cuotas adicionales MUFACE y Clases Pasivas</span><span>-{{ extra.pagaExtraCuotas | currency:'EUR' }}</span>
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3 bg-primary-subtle">
                   <span class="fw-bold">Importe Neto Final</span>
-                  <span class="h5 mb-0 text-primary fw-bold">{{ result.pagaExtraNeta | currency:'EUR' }}</span>
+                  <span class="h5 mb-0 text-primary fw-bold">{{ extra.pagaExtraNeta | currency:'EUR' }}</span>
                 </li>
               </ul>
               <div class="p-2 bg-light border-top">
                 <p class="x-small text-muted mb-0 fst-italic">
                   <i class="bi bi-info-circle me-1"></i>
-                  La extra corresponde al porcentaje de semestre devengado indicado y a la jornada actual. Incluye sueldo, trienios, destino, específico general y el 78% del sexenio. La guía no desglosa las extras de cargos y otros complementos: no se estiman aquí.
+                  El devengo se calcula por las fechas del contrato y se aplica además la jornada indicada. Incluye sueldo, trienios, destino, específico general y el 78% del sexenio. La guía no desglosa las extras de cargos y otros complementos: no se estiman aquí.
                 </p>
                 <p class="x-small text-muted mb-0 fst-italic mt-1">
                   <i class="bi bi-info-circle me-1"></i>
@@ -264,6 +274,8 @@ export class PayrollResultComponent {
       this.generatingPdf.set(false);
     }
   }
+
+  formatDate(value: string): string { return value.split('-').reverse().join('/'); }
 
   meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
