@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PayrollResult } from '../../models/payroll.model';
 
@@ -13,6 +13,12 @@ import { PayrollResult } from '../../models/payroll.model';
           <h4 class="mb-0">Resumen de la Nómina</h4>
         </div>
         <div class="card-body p-4">
+          <div class="d-flex justify-content-end mb-3">
+            <button type="button" class="btn btn-outline-primary" (click)="downloadPdf()" [disabled]="generatingPdf()" [attr.aria-busy]="generatingPdf()">
+              <i class="bi bi-file-earmark-pdf me-2" aria-hidden="true"></i>{{ generatingPdf() ? 'Generando PDF…' : 'Descargar simulación en PDF' }}
+            </button>
+          </div>
+          <div *ngIf="pdfError()" class="alert alert-danger" role="alert">{{ pdfError() }}</div>
           <div class="row text-center mb-4">
             <div class="col-12">
               <span class="text-muted text-uppercase small fw-bold">Salario Neto Mensual</span>
@@ -240,6 +246,24 @@ import { PayrollResult } from '../../models/payroll.model';
 })
 export class PayrollResultComponent {
   @Input() result?: PayrollResult;
+  generatingPdf = signal(false);
+  pdfError = signal('');
+
+  async downloadPdf() {
+    const snapshot = this.result;
+    if (!snapshot || this.generatingPdf()) return;
+    this.generatingPdf.set(true);
+    this.pdfError.set('');
+    try {
+      const [{ jsPDF }, { buildPayrollPdf, payrollPdfFilename }] = await Promise.all([import('jspdf'), import('../../services/payroll-pdf')]);
+      const doc = buildPayrollPdf(new jsPDF({ unit: 'mm', format: 'a4', compress: true }), snapshot);
+      await doc.save(payrollPdfFilename(snapshot), { returnPromise: true });
+    } catch {
+      this.pdfError.set('No se ha podido generar el PDF. Inténtalo de nuevo.');
+    } finally {
+      this.generatingPdf.set(false);
+    }
+  }
 
   meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

@@ -62,3 +62,7 @@ npm ci
 npm test -- --watch=false
 npm run build -- --base-href /TeacherSalaryCalculator/
 ```
+
+## Exportar simulaciones
+
+Después de calcular, pulsa **Descargar simulación en PDF** en el resultado. El documento incluye los parámetros, devengos, bases, deducciones, neto ordinario y extra de la última simulación calculada. Se genera en el navegador con texto seleccionable, fuentes incorporadas y paginación automática. El generador se carga al pulsar el botón.

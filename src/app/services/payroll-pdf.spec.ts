@@ -1,0 +1,55 @@
+import { vi } from 'vitest';
+import { jsPDF } from 'jspdf';
+import { buildPayrollPdf, payrollPdfFilename } from './payroll-pdf';
+import { PayrollService } from './payroll.service';
+import { PayrollInput } from '../models/payroll.model';
+import complementos from '../../assets/data/complementos.json';
+
+export const exampleInput: PayrollInput = {
+  cuerpo: 'Secundaria', isla: 'Tenerife', mes: 10, anio: 2026, diasTrabajados: 30,
+  horasSemanales: 18, porcentajeJornada: 100, porcentajeDevengoExtra: 100,
+  cargoDirectivo: 'Dirección', familiaCentro: 'Secundaria, Medias, Artísticas, A distancia y EEOOII', tipoCentro: 'A',
+  complementos: ['Coordinación de Orientación Profesional', 'Itinerancia (€/km)'],
+  cantidadesComplementos: {'Itinerancia (€/km)': 125}, irpf: 15, trienios: 2, sexenios: 1,
+  compatibilidadPrivada: false, diasCompatibilidad: 0, regimen: 'general'
+};
+
+describe('Exportación de la simulación a PDF', () => {
+  it('genera un documento paginado con los importes de la simulación sin modificarlos', () => {
+    const result = new PayrollService().calculatePayroll(exampleInput);
+    const before = JSON.stringify(result);
+    const doc = new jsPDF({ compress: false });
+    const spy = vi.spyOn(doc, 'text');
+    const output = buildPayrollPdf(doc, result).output();
+    const written = JSON.stringify(spy.mock.calls);
+    expect(output.startsWith('%PDF-')).toBe(true);
+    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+    expect(written).toContain('694,24');
+    expect(written).toContain('125 km');
+    expect(written).toContain('Neto ordinario mensual');
+    expect(written).toContain('Clases Pasivas');
+    expect(JSON.stringify(result)).toBe(before);
+    expect(payrollPdfFilename(result)).toBe('simulacion-nomina-2026-10.pdf');
+  });
+  it('pagina listas extensas y conserva el último complemento y las notas', () => {
+    const input = { ...exampleInput, complementos: Object.keys(complementos['otros cargos']), cantidadesComplementos: {
+      'Itinerancia (€/km)': 25, 'Hora lectiva complementaria Grupo A1': 2, 'Hora lectiva complementaria Grupo A2': 3
+    }};
+    const doc = new jsPDF();
+    const spy = vi.spyOn(doc, 'text');
+    buildPayrollPdf(doc, new PayrollService().calculatePayroll(input));
+    expect(doc.getNumberOfPages()).toBeGreaterThan(3);
+    expect(JSON.stringify(spy.mock.calls)).toContain('STEC-IC');
+    expect(JSON.stringify(spy.mock.calls)).toContain('136,10');
+  });
+  it('exporta las cuotas y la reducción autorizada para Clases Pasivas', () => {
+    const result = new PayrollService().calculatePayroll({ ...exampleInput, regimen:'pasivos', compatibilidadPrivada: true, diasCompatibilidad: 10, importeReduccionCompatibilidad: 300 });
+    const doc = new jsPDF();
+    const spy = vi.spyOn(doc, 'text');
+    buildPayrollPdf(doc, result);
+    const output = JSON.stringify(spy.mock.calls);
+    expect(output).toContain('118,04');
+    expect(output).toContain('300,00');
+    expect(output).toContain('-100,00');
+  });
+});
