@@ -1,6 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import { regular, bold } from './pdf-fonts/fonts';
-import type { PayrollResult } from '../models/payroll.model';
+import type { PayrollResult, PayrollMonth, ContractTotals } from '../models/payroll.model';
 import complementos from '../../assets/data/complementos.json';
 
 const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -16,7 +16,7 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal');
   doc.addFileToVFS('DejaVuSans-Bold.ttf', bold);
   doc.addFont('DejaVuSans-Bold.ttf', 'DejaVuSans', 'bold');
-  const input = r.input, d = r.detalleDevengos, c = r.detalleDeducciones;
+  const input = r.input;
   const left = 18, right = 192, bottom = 273;
   let y = 0;
   const text = (value: string, x: number, at: number, options = {}) => doc.text(clean(value), x, at, options);
@@ -59,7 +59,7 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   amount('Bruto ordinario', r.totalDevengado);
   amount('Deducciones ordinarias', r.totalDeducciones);
   amount('Neto ordinario mensual', r.salarioNeto, true);
-  for (const extra of r.pagasExtra) amount(`Extra de ${extra.nombre} - neto (${percent(extra.porcentajeDevengo)}% de devengo)`, extra.pagaExtraNeta, true);
+  for (const extra of r.pagasExtra) amount(`Extra de ${extra.nombre} ${extra.anio} - neto (${percent(extra.porcentajeDevengo)}% de devengo)`, extra.pagaExtraNeta, true);
   section('Datos de la simulación');
   row('Cuerpo', input.cuerpo); row('Isla', input.isla);
   row('Días retribuidos / horas lectivas semanales', `${input.diasTrabajados} días / ${input.horasSemanales} horas`);
@@ -75,7 +75,9 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   }
   row('Compatibilidad privada', input.compatibilidadPrivada ? `Sí / ${input.diasCompatibilidad} días` : 'No');
   if (input.compatibilidadPrivada) amount('Reducción mensual autorizada a jornada completa', input.importeReduccionCompatibilidad ?? 0);
-  section('Devengos ordinarios');
+  const monthlyBreakdown = (payroll: PayrollMonth, title: string) => {
+    const input = payroll.input, d = payroll.detalleDevengos, c = payroll.detalleDeducciones;
+  section(`${title} - devengos`);
   amount('Sueldo base', d.sueldoBase); amount('Trienios', d.trienios); amount('Sexenios', d.sexenios);
   amount('Complemento de destino', d.complementoDestino); amount('Complemento específico', d.complementoEspecifico);
   amount('Residencia', d.residencia); amount('Cargo directivo', d.cargoDirectivo);
@@ -87,8 +89,8 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
   }
   amount('Otros complementos - subtotal (incluido arriba)', d.otrosCargos);
   amount('Reducción por compatibilidad', -d.reduccionCompatibilidad);
-  amount('Total devengado ordinario', r.totalDevengado, true);
-  section('Bases y deducciones ordinarias');
+  amount('Total devengado ordinario', payroll.totalDevengado, true);
+  section(`${title} - deducciones`);
   amount('Base sujeta a IRPF', c.baseIRPF);
   amount('Base de contingencias comunes', c.basesCotizacion.contingenciasComunes);
   amount('Base de contingencias profesionales / desempleo / FP', c.basesCotizacion.contingenciasProfesionales);
@@ -102,11 +104,19 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
     amount('Cotización de solidaridad', ss.solidaridad);
   }
   amount('Cotizaciones y cuotas - subtotal', c.seguridadSocial);
-  amount('Total deducciones ordinarias', r.totalDeducciones, true);
-  amount('Neto ordinario mensual', r.salarioNeto, true);
+  amount('Total deducciones ordinarias', payroll.totalDeducciones, true);
+  amount('Neto ordinario mensual', payroll.salarioNeto, true);
+  };
+  monthlyBreakdown(r, 'Nómina indicada');
+  if (r.mesCompleto) {
+    section('Mes completo (30 días retribuidos)');
+    paragraph(`Misma jornada: ${input.horasSemanales} horas lectivas semanales. Comparación de nómina ordinaria, sin extras. Unidades variables y compatibilidad proyectadas al ritmo del mes indicado.`);
+    monthlyBreakdown(r.mesCompleto, 'Mes completo');
+  }
   for (const paga of r.pagasExtra) {
     const extra = paga.pagaExtraDetalle;
-    section(`Paga extraordinaria de ${paga.nombre} ${input.anio}`, 38);
+    section(`Paga extraordinaria de ${paga.nombre} ${paga.anio}`, 38);
+    if (paga.seLiquidaAlCese) paragraph('Parte pendiente incluida en la liquidación al cese.');
     row('Devengo de esta paga', `${percent(paga.porcentajeDevengo)}%`);
     row('Periodo de devengo', `${dateLabel(paga.periodoInicio)} - ${dateLabel(paga.periodoFin)}`);
     row('Días equivalentes (mes natural completo = 30)', `${paga.diasEquivalentes} / 180`);
@@ -118,14 +128,53 @@ export function buildPayrollPdf(doc: jsPDF, r: PayrollResult): jsPDF {
     amount('Cuotas adicionales MUFACE / Clases Pasivas', paga.pagaExtraCuotas);
     amount('Neto de la extra', paga.pagaExtraNeta, true);
   }
+  const totals = (value: ContractTotals) => {
+    amount('Bruto',value.bruto); amount('Retención IRPF',value.irpf);
+    amount('Seguridad Social / cuotas',value.seguridadSocial); amount('Neto',value.neto,true);
+  };
+  section('Liquidación al finalizar el contrato',38);
+  row('Fecha de cese',dateLabel(r.liquidacion.fecha));
+  const pending = r.liquidacion.extraPendiente;
+  paragraph('La liquidación adicional excluye la última nómina ordinaria. Cada extra cuyo semestre haya terminado se presupone abonada. No se presupone indemnización por cese.');
+  section('Extra pendiente de liquidar');
+  if (pending) {
+    row('Paga / devengo',`${pending.nombre} ${pending.anio} / ${percent(pending.porcentajeDevengo)}%`);
+    totals({bruto:pending.pagaExtraBruta,irpf:pending.pagaExtraIrpf,seguridadSocial:pending.pagaExtraCuotas,neto:pending.pagaExtraNeta});
+  } else paragraph('No queda una extra pendiente: el contrato finaliza al cierre del semestre.');
+  section('Vacaciones pendientes');
+  paragraph('2,5 días de vacaciones por mes completo trabajado; los meses incompletos aportan la proporción días/30. Se descuenta agosto dentro del contrato (máximo 30 días), sin consumir vacaciones de cursos posteriores.');
+  for (const course of r.liquidacion.devengoVacaciones.porCurso) {
+    row(`Curso ${course.curso}: generados / disfrutados / pendientes`,`${percent(course.diasGenerados)} / ${percent(course.diasDisfrutados)} / ${percent(course.diasPendientes)} días`);
+  }
+  row('Total días generados',percent(r.liquidacion.devengoVacaciones.diasGenerados));
+  row('Total días disfrutados en agosto',percent(r.liquidacion.devengoVacaciones.diasDisfrutados));
+  row('Total días pendientes de liquidar',percent(r.liquidacion.diasVacaciones));
+  totals(r.liquidacion.vacaciones);
+  paragraph('Estimación por días/30 con conceptos fijos, sin kilómetros ni horas complementarias. Cotizaciones calculadas por separado: la regularización de bases y topes con otros periodos en alta puede cambiar el importe.');
+  section('Total liquidación adicional');
+  totals(r.liquidacion.total);
+  paragraph('La extra pendiente ya aparece en las pagas del contrato; no se suma dos veces.');
+  const last = r.liquidacion.ultimaNomina;
+  section(`Última nómina: ${meses[last.input.mes - 1]} ${last.input.anio}`,65);
+  row('Días retribuidos del mes de cese',String(last.input.diasTrabajados));
+  monthlyBreakdown(last,'Última nómina');
+  amount('Neto última nómina + liquidación adicional',Math.round((last.salarioNeto+r.liquidacion.total.neto)*100)/100,true);
+  section('Totales por año del contrato',45);
+  paragraph('Proyección con tablas, cotizaciones, IRPF, antigüedad y jornada constantes de 2026, sin subidas futuras. Mes completo = 30 días; meses parciales según fechas (máximo 30). Unidades variables y compatibilidad se repiten al ritmo diario del mes indicado. Vacaciones pendientes atribuidas al año del cese.');
+  for (const annual of r.totalesAnuales) {
+    section(`Total del año ${annual.anio}`,75);
+    amount('Bruto de nóminas ordinarias',annual.brutoNominas);
+    amount('Bruto de pagas extraordinarias',annual.brutoExtras);
+    amount('Bruto de vacaciones pendientes',annual.brutoVacaciones);
+    totals(annual);
+  }
+  paragraph('Cada nómina, extra y vacaciones pendientes se cuenta una sola vez. Ni la comparación del mes completo ni el resumen de liquidación se añaden de nuevo.');
   section('Alcance y fuentes', 80);
   paragraph('Simulación informativa, sin validez de nómina oficial. Los importes corresponden a la última simulación calculada, con el porcentaje de IRPF indicado por el usuario.');
-  paragraph('Las dos extras se muestran separadas del neto ordinario. El contrato completo indicado determina cada devengo: meses naturales completos / 6 y días de meses incompletos / 180, máximo 100%. Se aplica además la jornada indicada. Incluye los conceptos desglosados en la guía; no incluye extras de cargos u otros complementos.');
+  paragraph('Todas las extras del contrato se muestran separadas del neto ordinario. El contrato completo indicado determina cada devengo: meses naturales completos / 6 y días de meses incompletos / 180, máximo 100%. Se aplica además la jornada indicada. Incluye los conceptos desglosados en la guía; no incluye extras de cargos u otros complementos.');
   paragraph('En Régimen General las extras cotizan mediante prorrata mensual. En MUFACE/Clases Pasivas se contemplan cuotas adicionales en las extras. El régimen mixto MUFACE + pensiones del Régimen General no está incluido.');
-  paragraph('Cambios de jornada, nombramiento o complementos durante el semestre, atrasos, liquidaciones y bases particulares a jornada parcial requieren cálculo individual. La itinerancia presupone desplazamientos justificados dentro de los límites exentos.');
-  paragraph('Los importes futuros son previsiones. Al cese la parte devengada puede abonarse en la liquidación. Los días de diciembre generan devengo para junio del año siguiente, fuera de las dos extras mostradas.');
-  paragraph('Devengo: guía RRHH de la Intervención General de Canarias, II.4.B, apartado 5.2.');
-  paragraph('https://www.gobiernodecanarias.org/hacienda/intervencion/servicios/guia_rrhh/libro2/ii4b.jsp');
+  paragraph('Cambios de jornada, nombramiento o complementos durante el semestre, atrasos y bases particulares a jornada parcial requieren cálculo individual. La itinerancia presupone desplazamientos justificados dentro de los límites exentos.');
+  paragraph('Calendario de simulación: enero-junio y julio-diciembre. Se incluye cada semestre que se solapa con el contrato, aunque su parte pendiente se liquide al cese antes del mes de pago.');
   paragraph('Importes: guía STEC-IC, febrero de 2026. Cotizaciones: Orden PJC/297/2026.');
   const source = 'https://www.stec.es/stec/archivos_subidos/gal_descargas/2/_214.pdf';
   paragraph(source);

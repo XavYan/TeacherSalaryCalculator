@@ -27,20 +27,29 @@ describe('Exportación de la simulación a PDF', () => {
     expect(written).toContain('694,24');
     expect(written).toContain('125 km');
     expect(written).toContain('Neto ordinario mensual');
+    expect(written).not.toContain('Mes completo (30 días retribuidos)');
     expect(written).toContain('Clases Pasivas');
     expect(JSON.stringify(result)).toBe(before);
     expect(payrollPdfFilename(result)).toBe('simulacion-nomina-2026-10.pdf');
   });
   it('exporta ambas pagas con sus porcentajes calculados y las fechas del contrato', () => {
-    const result = new PayrollService().calculatePayroll({ ...exampleInput, fechaInicioContrato:'2026-09-15', fechaFinContrato:'2027-08-31' });
+    const result = new PayrollService().calculatePayroll({ ...exampleInput, fechaInicioContrato:'2026-09-15', fechaFinContrato:'2027-08-15', mostrarMesCompleto:true });
     const doc = new jsPDF(), spy = vi.spyOn(doc,'text');
     buildPayrollPdf(doc,result);
     const written = JSON.stringify(spy.mock.calls);
-    expect(written).toContain('Paga extraordinaria de Junio 2026');
+    expect(written).toContain('Paga extraordinaria de Junio 2027');
     expect(written).toContain('Paga extraordinaria de Diciembre 2026');
-    expect(written).toContain('42,22%');
-    expect(written).toContain('0%');
-    expect(written).toContain('15/09/2026 - 31/08/2027');
+    expect(written).toContain('58,89%');
+    expect(written).toContain('25%');
+    expect(written).toContain('15/09/2026 - 15/08/2027');
+    expect(written).toContain('Mes completo (30 días retribuidos)');
+    expect(written).toContain('Liquidación al finalizar el contrato');
+    expect(written).toContain('Total del año 2026');
+    expect(written).toContain('Total del año 2027');
+    expect(written).toContain('Vacaciones pendientes');
+    expect(written).toContain('Total días disfrutados en agosto');
+    expect(written).toContain('12,58');
+    expect(written).toContain('Última nómina: Agosto 2027');
   });
   it('pagina listas extensas y conserva el último complemento y las notas', () => {
     const input = { ...exampleInput, complementos: Object.keys(complementos['otros cargos']), cantidadesComplementos: {

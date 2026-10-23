@@ -1,36 +1,35 @@
-import { contractExtraAccrual } from './extra-accrual';
+import { contractExtraAccrual, contractMonths } from './extra-accrual';
 
-describe('Devengo canario por fechas de contrato', () => {
-  it('cubre ambos semestres completos con fechas en años distintos', () => {
-    const extras = contractExtraAccrual(2026, '2025-09-01', '2027-08-31');
-    expect(extras.map(e=>e.porcentajeDevengo)).toEqual([100,100]);
-    expect(extras.map(e=>[e.periodoInicio,e.periodoFin])).toEqual([['2025-12-01','2026-05-31'],['2026-06-01','2026-11-30']]);
+describe('Devengo por semestres naturales de todo el contrato', () => {
+  it('recorre todos los años y excluye semestres sin solapamiento', () => {
+    const extras = contractExtraAccrual('2025-09-01','2027-08-31');
+    expect(extras.map(e=>[e.anio,e.mesPago,e.diasEquivalentes])).toEqual([[2025,12,120],[2026,6,180],[2026,12,180],[2027,6,180],[2027,12,60]]);
+    expect(extras[0].periodoInicio).toBe('2025-07-01');
+    expect(extras[0].periodoFin).toBe('2025-12-31');
+    expect(extras.filter(e=>e.seLiquidaAlCese)).toEqual([extras[4]]);
   });
-  it('un contrato del curso iniciado en septiembre solo devenga la extra de diciembre de ese año', () => {
-    const extras = contractExtraAccrual(2026, '2026-09-15', '2027-08-31');
-    expect(extras[0].porcentajeDevengo).toBe(0);
-    expect(extras[1].diasEquivalentes).toBe(76); // septiembre 16 días + octubre/noviembre 60
-    expect(extras[1].porcentajeDevengo).toBeCloseTo(42.222222, 5);
+  it('incluye solo junio al terminar el 30 de junio y solo diciembre desde el 1 de julio', () => {
+    expect(contractExtraAccrual('2026-01-01','2026-06-30').map(e=>[e.mesPago,e.diasEquivalentes,e.seLiquidaAlCese])).toEqual([[6,180,false]]);
+    expect(contractExtraAccrual('2026-07-01','2026-12-31').map(e=>[e.mesPago,e.diasEquivalentes,e.seLiquidaAlCese])).toEqual([[12,180,false]]);
   });
-  it('cuenta febrero completo como un mes, incluso en año bisiesto', () => {
-    expect(contractExtraAccrual(2026, '2026-02-01', '2026-02-28')[0].diasEquivalentes).toBe(30);
-    expect(contractExtraAccrual(2024, '2024-02-01', '2024-02-29')[0].diasEquivalentes).toBe(30);
-    expect(contractExtraAccrual(2024, '2024-02-02', '2024-02-29')[0].diasEquivalentes).toBe(28);
+  it('cuenta los extremos inclusivos y liquida el último semestre incompleto', () => {
+    expect(contractExtraAccrual('2026-06-30','2026-07-01').map(e=>[e.diasEquivalentes,e.seLiquidaAlCese])).toEqual([[1,false],[1,true]]);
+    expect(contractExtraAccrual('2026-12-31','2027-01-01').map(e=>[e.anio,e.diasEquivalentes])).toEqual([[2026,1],[2027,1]]);
   });
-  it('calcula diferentes porcentajes para cada extra (sin depender del mes de simulación)', () => {
-    expect(contractExtraAccrual(2026, '2026-03-01', '2026-08-31').map(e=>e.porcentajeDevengo)).toEqual([50,50]);
-    expect(contractExtraAccrual(2026, '2026-01-01', '2026-06-30').map(e=>e.diasEquivalentes)).toEqual([150,30]);
+  it('mantiene meses completos de 30 y días reales de meses parciales, incluso en febrero bisiesto', () => {
+    expect(contractExtraAccrual('2026-02-01','2026-02-28')[0].diasEquivalentes).toBe(30);
+    expect(contractExtraAccrual('2024-02-01','2024-02-29')[0].diasEquivalentes).toBe(30);
+    expect(contractExtraAccrual('2024-02-02','2024-02-29')[0].diasEquivalentes).toBe(28);
+    expect(contractExtraAccrual('2026-09-15','2027-08-31').map(e=>e.diasEquivalentes)).toEqual([106,180,60]);
   });
-  it('cuenta las fechas de inicio y fin de forma inclusiva en los límites de semestre', () => {
-    expect(contractExtraAccrual(2026, '2026-05-31', '2026-06-01').map(e=>e.diasEquivalentes)).toEqual([1,1]);
-    expect(contractExtraAccrual(2026, '2026-11-30', '2026-12-01').map(e=>e.diasEquivalentes)).toEqual([0,1]);
-    expect(contractExtraAccrual(2026, '2025-12-01', '2025-12-01').map(e=>e.diasEquivalentes)).toEqual([1,0]);
-  });
-  it('no cuenta contratos fuera de los periodos del año seleccionado', () => {
-    expect(contractExtraAccrual(2026, '2026-12-01', '2027-08-31').map(e=>e.diasEquivalentes)).toEqual([0,0]);
-    expect(contractExtraAccrual(2026, '2025-01-01', '2025-11-30').map(e=>e.diasEquivalentes)).toEqual([0,0]);
+  it('un solo día produce una única extra parcial', () => {
+    expect(contractExtraAccrual('2026-12-31','2026-12-31')[0].diasEquivalentes).toBe(1);
   });
   it('rechaza fechas inexistentes, vacías y contratos invertidos', () => {
-    for (const [from,to] of [['',''],['2026-02-29','2026-03-01'],['2026-04-31','2026-05-01'],['2026-09-01','2026-08-31']]) expect(()=>contractExtraAccrual(2026,from,to)).toThrow();
+    for (const [from,to] of [['',''],['2026-02-29','2026-03-01'],['2026-04-31','2026-05-01'],['2026-09-01','2026-08-31']]) expect(()=>contractExtraAccrual(from,to)).toThrow();
+  });
+  it('divide los meses ordinarios usando 30 días para meses completos', () => {
+    expect(contractMonths('2026-01-16','2026-03-15')).toEqual([{anio:2026,mes:1,dias:16},{anio:2026,mes:2,dias:30},{anio:2026,mes:3,dias:15}]);
+    expect(contractMonths('2026-12-31','2027-01-01')).toEqual([{anio:2026,mes:12,dias:1},{anio:2027,mes:1,dias:1}]);
   });
 });

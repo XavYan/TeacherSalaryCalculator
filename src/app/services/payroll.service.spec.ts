@@ -5,7 +5,7 @@ import complementos from '../../assets/data/complementos.json';
 const base: PayrollInput = {
   cuerpo: 'Secundaria', isla: 'Tenerife', mes: 10, anio: 2026,
   diasTrabajados: 30, horasSemanales: 18, porcentajeJornada: 100,
-  fechaInicioContrato: '2025-12-01', fechaFinContrato: '2026-11-30', cargoDirectivo: '', tipoCentro: 'D',
+  fechaInicioContrato: '2026-01-01', fechaFinContrato: '2026-12-31', cargoDirectivo: '', tipoCentro: 'D',
   familiaCentro: 'Secundaria, Medias, Artísticas, A distancia y EEOOII',
   complementos: [], irpf: 15, trienios: 0, sexenios: 0,
   compatibilidadPrivada: false, diasCompatibilidad: 0, regimen: 'general'
@@ -66,17 +66,78 @@ describe('Auditoría de la guía STEC-IC febrero 2026', () => {
     expect(r.detalleDevengos.sueldoBase).toBe(346.81);
     expect(r.pagasExtra[0].pagaExtraBruta).toBe(1097.45);
     expect(calc({ diasTrabajados: 15 }).pagasExtra[0].pagaExtraBruta).toBe(2194.88);
-    expect(calc({ fechaInicioContrato: '2026-03-01' }).pagasExtra[0].pagaExtraBruta).toBe(1097.45);
+    expect(calc({ fechaInicioContrato: '2026-04-01' }).pagasExtra[0].pagaExtraBruta).toBe(1097.45);
   });
-  it('separa junio sin devengo y diciembre parcial sin alterar la prorrata mensual', () => {
+  it('incluye las tres extras del curso y conserva la prorrata mensual', () => {
     const r = calc({ fechaInicioContrato:'2026-09-15', fechaFinContrato:'2027-08-31', irpf:20 });
-    expect(r.pagasExtra).toHaveLength(2);
-    expect(r.pagasExtra[0].pagaExtraNeta).toBe(0);
-    expect(r.pagasExtra[1].porcentajeDevengo).toBeCloseTo(42.222222,5);
-    expect(r.pagasExtra[1].pagaExtraBruta).toBe(926.72);
-    expect(r.pagasExtra[1].pagaExtraIrpf).toBe(185.34);
-    expect(r.pagasExtra[1].pagaExtraNeta).toBe(741.38);
+    expect(r.pagasExtra).toHaveLength(3);
+    expect(r.pagasExtra.map(e=>[e.anio,e.mesPago])).toEqual([[2026,12],[2027,6],[2027,12]]);
+    expect(r.pagasExtra[0].porcentajeDevengo).toBeCloseTo(58.888888,5);
+    expect(r.pagasExtra[1].pagaExtraBruta).toBe(2194.88);
+    expect(r.pagasExtra[2].porcentajeDevengo).toBeCloseTo(100/3,5);
     expect(r.detalleDeducciones.basesCotizacion).toEqual(calc().detalleDeducciones.basesCotizacion);
+  });
+  it('la comparación mensual es opcional y no altera los totales del contrato', () => {
+    const r = calc({diasTrabajados:15,mostrarMesCompleto:true});
+    const ordinary = calc({diasTrabajados:15});
+    expect(ordinary.mesCompleto).toBeUndefined();
+    expect(r.totalDevengado).toBe(1529.11);
+    expect(r.mesCompleto?.totalDevengado).toBe(3058.22);
+    expect(r.totalesAnuales).toEqual(ordinary.totalesAnuales);
+    expect(r.mesCompleto?.detalleDeducciones).toEqual(calc().detalleDeducciones);
+  });
+  it('suma doce nóminas y dos extras sin añadir de nuevo la liquidación', () => {
+    const r = calc();
+    expect(r.totalesAnuales).toHaveLength(1);
+    const annual = r.totalesAnuales[0], vacation = r.liquidacion.vacaciones;
+    expect(r.liquidacion.diasVacaciones).toBe(10);
+    expect(annual.brutoNominas).toBe(36698.64); expect(annual.brutoExtras).toBe(4389.76);
+    expect(annual.bruto).toBeCloseTo(41088.4+vacation.bruto,2);
+    expect(annual.irpf).toBeCloseTo(6163.22+vacation.irpf,2);
+    expect(annual.seguridadSocial).toBeCloseTo(2670.72+vacation.seguridadSocial,2);
+    expect(annual.neto).toBeCloseTo(32254.46+vacation.neto,2);
+    expect(r.liquidacion.extraPendiente).toBeUndefined();
+    expect(r.liquidacion.total.neto).toBe(r.liquidacion.vacaciones.neto);
+  });
+  it('liquida la última extra parcial y atribuye cada suma al año correcto', () => {
+    const r = calc({fechaInicioContrato:'2026-12-31',fechaFinContrato:'2027-01-01'});
+    expect(r.pagasExtra).toHaveLength(2);
+    expect(r.liquidacion.extraPendiente).toEqual(r.pagasExtra[1]);
+    expect(r.liquidacion.total.bruto).toBeCloseTo(r.pagasExtra[1].pagaExtraBruta+r.liquidacion.vacaciones.bruto,2);
+    expect(r.liquidacion.ultimaNomina.input.diasTrabajados).toBe(1);
+    for (const [index,annual] of r.totalesAnuales.entries()) {
+      const daily = calc({diasTrabajados:1});
+      expect(annual.bruto).toBeCloseTo(daily.totalDevengado+r.pagasExtra[index].pagaExtraBruta+(index===1 ? r.liquidacion.vacaciones.bruto : 0),2);
+      expect(annual.neto).toBeCloseTo(annual.bruto-annual.irpf-annual.seguridadSocial,2);
+    }
+  });
+  it('valora automáticamente las vacaciones sin kilómetros ni horas complementarias', () => {
+    const changes = {fechaInicioContrato:'2026-02-01',fechaFinContrato:'2026-07-31'};
+    const without = calc(changes), r = calc({...changes,complementos:['Itinerancia (€/km)'],cantidadesComplementos:{'Itinerancia (€/km)':100}});
+    expect(r.liquidacion.diasVacaciones).toBe(15);
+    expect(r.liquidacion.vacaciones.bruto).toBe(1529.11);
+    expect(r.liquidacion.vacaciones).toEqual(without.liquidacion.vacaciones);
+    expect(r.totalesAnuales[0].brutoVacaciones).toBe(1529.11);
+    expect(r.liquidacion.total.bruto).toBeCloseTo(r.liquidacion.vacaciones.bruto+r.pagasExtra[1].pagaExtraBruta,2);
+  });
+  it('solo atribuye vacaciones pendientes al año del cese y admite menos de un día', () => {
+    const r = calc({fechaInicioContrato:'2026-09-01',fechaFinContrato:'2027-08-15'});
+    expect(r.liquidacion.diasVacaciones).toBe(13.75);
+    expect(r.totalesAnuales[0].brutoVacaciones).toBe(0);
+    expect(r.totalesAnuales[1].brutoVacaciones).toBe(r.liquidacion.vacaciones.bruto);
+    expect(calc({fechaInicioContrato:'2026-01-01',fechaFinContrato:'2026-01-01'}).liquidacion.vacaciones.bruto).toBeGreaterThan(0);
+    expect(calc({fechaInicioContrato:'2026-09-01',fechaFinContrato:'2027-08-31'}).liquidacion.vacaciones.bruto).toBe(0);
+  });
+  it('proyecta unidades variables y días de compatibilidad al ritmo del mes indicado', () => {
+    const r = calc({diasTrabajados:15,mostrarMesCompleto:true,compatibilidadPrivada:true,diasCompatibilidad:10,importeReduccionCompatibilidad:300,complementos:['Itinerancia (€/km)'],cantidadesComplementos:{'Itinerancia (€/km)':100}});
+    expect(r.mesCompleto?.detalleDevengos.otrosCargos).toBe(52);
+    expect(r.mesCompleto?.detalleDevengos.reduccionCompatibilidad).toBe(200);
+    expect(r.detalleDevengos.otrosCargos).toBe(26);
+  });
+  it('las proyecciones conservan las horas lectivas y las cuotas de Clases Pasivas', () => {
+    const r = calc({horasSemanales:9,porcentajeJornada:undefined,regimen:'pasivos',mostrarMesCompleto:true});
+    expect(r.mesCompleto?.detalleDevengos.sueldoBase).toBe(693.62);
+    expect(r.totalesAnuales[0].seguridadSocial).toBeCloseTo(2376.08+r.liquidacion.vacaciones.seguridadSocial,2);
   });
   it('calcula kilómetros y horas realizados, sin doble proporcionalidad ni duplicados', () => {
     const km = 'Itinerancia (€/km)', hora = 'Hora lectiva complementaria Grupo A1';

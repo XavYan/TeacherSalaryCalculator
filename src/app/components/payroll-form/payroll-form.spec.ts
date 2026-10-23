@@ -11,8 +11,18 @@ describe('Selección del equipo directivo', () => {
   it('inicia IRPF al 20% y exige ambas fechas del contrato', async () => {
     const form = (await setup()).componentInstance;
     expect(form.payrollForm.value.irpf).toBe(20);
+    expect(form.payrollForm.value.horasSemanales).toBe(18);
+    expect(form.payrollForm.value.mostrarMesCompleto).toBe(false);
     expect(form.payrollForm.get('fechaInicioContrato')?.hasError('required')).toBe(true);
     expect(form.payrollForm.get('fechaFinContrato')?.hasError('required')).toBe(true);
+  });
+  it('permite activar la comparación del mes completo desde el checkbox', async () => {
+    const fixture = await setup(), form = fixture.componentInstance;
+    const checkbox = fixture.nativeElement.querySelector('#mostrarMesCompleto') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    checkbox.checked = true; checkbox.dispatchEvent(new Event('change')); fixture.detectChanges();
+    expect(form.payrollForm.value.mostrarMesCompleto).toBe(true);
+    expect(form.payrollForm.value.horasSemanales).toBe(18);
   });
   it('rechaza contratos con fin anterior al inicio', async () => {
     const form = (await setup()).componentInstance;

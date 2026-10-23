@@ -41,7 +41,7 @@ interface SalaryData {
       <div class="col-12 small alert alert-info">
         Tablas STEC-IC de febrero de 2026. Importes brutos contrastados con la guía.
         <a href="https://www.stec.es/stec/archivos_subidos/gal_descargas/2/_214.pdf" target="_blank" rel="noopener">Consultar PDF</a>.
-        La estimación usa una situación estable durante el semestre; no incluye atrasos ni liquidaciones.
+        Las proyecciones de todo el contrato mantienen los importes y tipos de 2026; no incluyen subidas futuras ni atrasos.
       </div>
       <!-- Cuerpo e Isla -->
       <div class="col-md-6">
@@ -126,6 +126,10 @@ interface SalaryData {
       <div class="col-md-6">
         <label class="form-label fw-bold">Días trabajados (máximo 30 días)</label>
         <input type="number" formControlName="diasTrabajados" class="form-control shadow-sm" placeholder="Ej: 30">
+        <div class="form-check mt-2">
+          <input id="mostrarMesCompleto" type="checkbox" formControlName="mostrarMesCompleto" class="form-check-input">
+          <label for="mostrarMesCompleto" class="form-check-label">Mostrar también cuánto cobraría en un mes completo</label>
+        </div>
       </div>
 
       <div class="col-md-6">
@@ -152,9 +156,10 @@ interface SalaryData {
         <input id="fechaFinContrato" type="date" formControlName="fechaFinContrato" [min]="payrollForm.get('fechaInicioContrato')?.value" class="form-control" required>
       </div>
       <div class="col-12 small text-muted">
-        Estas fechas calculan las dos extras del año seleccionado: junio (1 de diciembre anterior a 31 de mayo) y diciembre (1 de junio a 30 de noviembre).
-        Se estima todo el contrato indicado, incluidos los días futuros. La jornada indicada se aplica a ambas extras.
+        Estas fechas calculan todas las extras del contrato: junio (1 de enero a 30 de junio) y diciembre (1 de julio a 31 de diciembre).
+        Se estima todo el contrato indicado, incluidos los días futuros. La jornada indicada se aplica a todas las extras.
         Para la nómina ordinaria, indica los días retribuidos del mes en su campo correspondiente.
+        Las vacaciones se calculan automáticamente: 2,5 días por mes completo (proporción en meses incompletos), menos las vacaciones disfrutadas en agosto dentro del contrato, por curso de septiembre a agosto.
       </div>
       <div class="col-md-6">
         <label class="form-label fw-bold">Régimen de cotización</label>
@@ -404,6 +409,7 @@ export class PayrollForm {
     isla: ['', [Validators.required]],
     mes: [new Date().getMonth() + 1, [Validators.required]],
     anio: [2026, [Validators.required, Validators.min(2026), Validators.max(2026)]],
+    mostrarMesCompleto: [false],
     diasTrabajados: [30, [Validators.required, Validators.min(1), Validators.max(30)]],
     horasSemanales: [18, [Validators.required, Validators.min(1), Validators.max(18)]],
     fechaInicioContrato: ['', Validators.required],

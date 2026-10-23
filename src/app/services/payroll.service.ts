@@ -1,6 +1,7 @@
-import { contractExtraAccrual } from './extra-accrual';
+import { contractVacationAccrual } from './vacation-accrual';
+import { contractExtraAccrual, contractMonths, ExtraAccrual } from './extra-accrual';
 import { Injectable } from '@angular/core';
-import { PayrollInput, PayrollResult } from '../models/payroll.model';
+import { PayrollInput, PayrollResult, PayrollMonth, PayrollExtra, ContractTotals, AnnualTotals } from '../models/payroll.model';
 import salariosData from '../../assets/data/salarios.json';
 import complementosData from '../../assets/data/complementos.json';
 import ssData from '../../assets/data/seguridad_social.json';
@@ -12,17 +13,66 @@ const familias = complementosData['cargos directivos'] as Record<string, Record<
 @Injectable({ providedIn: 'root' })
 export class PayrollService {
   calculatePayroll(input: PayrollInput): PayrollResult {
+    const devengos = contractExtraAccrual(input.fechaInicioContrato, input.fechaFinContrato);
+    if (!Number.isFinite(input.diasTrabajados) || input.diasTrabajados < 1 || input.diasTrabajados > 30) throw new Error('Indique entre 1 y 30 días trabajados.');
+    const result = this.calculateBase(input, devengos);
+    const months = contractMonths(input.fechaInicioContrato, input.fechaFinContrato);
+    const devengoVacaciones = contractVacationAccrual(months);
+    const vacationDays = devengoVacaciones.diasPendientes;
+    // Repetimos las condiciones del mes de referencia; las unidades variables
+    // se proyectan por día retribuido, sin volver a aplicar el factor de jornada.
+    const monthly = (days: number, year: number, month: number, vacaciones = false): PayrollMonth => {
+      const cantidades = Object.fromEntries(Object.entries(input.cantidadesComplementos ?? {}).map(([key, value]) => [key, value * days / input.diasTrabajados]));
+      const computed = this.calculateBase({ ...input, diasTrabajados: days,
+        diasCompatibilidad: input.diasCompatibilidad / input.diasTrabajados * days,
+        cantidadesComplementos: cantidades,
+        complementos: vacaciones ? input.complementos.filter(c => c !== 'Itinerancia (€/km)' && !c.startsWith('Hora lectiva complementaria')) : input.complementos
+      });
+      return { ...computed, input: { ...computed.input, anio: year, mes: month } };
+    };
+    const totals = (p: PayrollMonth): ContractTotals => ({ bruto:p.totalDevengado, irpf:p.detalleDeducciones.irpf, seguridadSocial:p.detalleDeducciones.seguridadSocial, neto:p.salarioNeto });
+    const add = (a: ContractTotals, b: ContractTotals): ContractTotals => ({ bruto:sum(a.bruto,b.bruto), irpf:sum(a.irpf,b.irpf), seguridadSocial:sum(a.seguridadSocial,b.seguridadSocial), neto:sum(a.neto,b.neto) });
+    const empty = (): ContractTotals => ({ bruto:0, irpf:0, seguridadSocial:0, neto:0 });
+    const annual = new Map<number, AnnualTotals>();
+    let last!: PayrollMonth;
+    for (const month of months) {
+      const payroll = monthly(month.dias, month.anio, month.mes);
+      const previous = annual.get(month.anio) ?? { ...empty(), anio:month.anio, brutoNominas:0, brutoExtras:0, brutoVacaciones:0 };
+      annual.set(month.anio, { ...previous, ...add(previous, totals(payroll)), brutoNominas:sum(previous.brutoNominas,payroll.totalDevengado) });
+      last = payroll;
+    }
+    for (const extra of result.pagasExtra) {
+      const previous = annual.get(extra.anio)!;
+      annual.set(extra.anio, { ...previous,
+        ...add(previous, { bruto:extra.pagaExtraBruta, irpf:extra.pagaExtraIrpf, seguridadSocial:extra.pagaExtraCuotas, neto:extra.pagaExtraNeta }),
+        brutoExtras:sum(previous.brutoExtras,extra.pagaExtraBruta) });
+    }
+    let vacaciones = empty();
+    for (let remaining = vacationDays; remaining > 1e-8; remaining -= 30) {
+      vacaciones = add(vacaciones, totals(monthly(Math.min(30,remaining),last.input.anio,last.input.mes,true)));
+    }
+    const lastYear = annual.get(last.input.anio)!;
+    annual.set(lastYear.anio, { ...lastYear, ...add(lastYear,vacaciones), brutoVacaciones:vacaciones.bruto });
+    const extraPendiente = result.pagasExtra.find(e => e.seLiquidaAlCese);
+    const extraTotal = extraPendiente ? { bruto:extraPendiente.pagaExtraBruta, irpf:extraPendiente.pagaExtraIrpf, seguridadSocial:extraPendiente.pagaExtraCuotas, neto:extraPendiente.pagaExtraNeta } : empty();
+    return { ...result,
+      mesCompleto: input.mostrarMesCompleto ? monthly(30,input.anio,input.mes) : undefined,
+      liquidacion: { fecha:input.fechaFinContrato, ultimaNomina:last, extraPendiente, vacaciones, diasVacaciones:vacationDays, devengoVacaciones, total:add(extraTotal,vacaciones) },
+      totalesAnuales:[...annual.values()]
+    };
+  }
+
+  private calculateBase(input: PayrollInput, devengos: ExtraAccrual[] = []): PayrollMonth & { pagasExtra: PayrollExtra[] } {
     const config = salariosData.find(s => s.cuerpo === input.cuerpo);
     if (!config) throw new Error('Seleccione un cuerpo válido.');
     const range = (n: number, min: number, max: number) => Number.isFinite(n) && n >= min && n <= max;
     if (input.anio !== 2026 || !range(input.mes, 1, 12) || !Number.isInteger(input.mes) ||
-        !range(input.diasTrabajados, 1, 30) || !range(input.irpf, 0, 100) ||
+        !range(input.diasTrabajados, 0.0001, 30) || !range(input.irpf, 0, 100) ||
         !Number.isInteger(input.trienios) || input.trienios < 0 ||
         !Number.isInteger(input.sexenios) || !range(input.sexenios, 0, 5)) {
       throw new Error('Revise los datos: las tablas disponibles corresponden a 2026.');
     }
     const jornada = input.porcentajeJornada === undefined ? input.horasSemanales / 18 : input.porcentajeJornada / 100;
-    const devengos = contractExtraAccrual(input.anio, input.fechaInicioContrato, input.fechaFinContrato);
     if (!range(jornada, 0.0001, 1)) throw new Error('Porcentaje de jornada inválido.');
     const factorDias = input.diasTrabajados / 30;
     const multiplier = factorDias * jornada;

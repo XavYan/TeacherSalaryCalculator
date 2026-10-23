@@ -1,4 +1,7 @@
+import type { VacationAccrual } from '../services/vacation-accrual';
+
 export interface PayrollInput {
+  mostrarMesCompleto?: boolean;
   porcentajeJornada?: number;
   fechaInicioContrato: string;
   fechaFinContrato: string;
@@ -23,12 +26,11 @@ export interface PayrollInput {
   seguridadSocial?: number;
 }
 
-export interface PayrollResult {
+export interface PayrollMonth {
   input: PayrollInput;
   totalDevengado: number;
   totalDeducciones: number;
   salarioNeto: number;
-  pagasExtra: PayrollExtra[];
   detalleDevengos: {
     sueldoBase: number;
     trienios: number;
@@ -60,7 +62,31 @@ export interface PayrollResult {
   };
 }
 
+export interface PayrollResult extends PayrollMonth {
+  pagasExtra: PayrollExtra[];
+  mesCompleto?: PayrollMonth;
+  liquidacion: {
+    fecha: string;
+    ultimaNomina: PayrollMonth;
+    extraPendiente?: PayrollExtra;
+    vacaciones: ContractTotals;
+    diasVacaciones: number;
+    devengoVacaciones: VacationAccrual;
+    total: ContractTotals;
+  };
+  totalesAnuales: AnnualTotals[];
+}
+export interface ContractTotals { bruto: number; irpf: number; seguridadSocial: number; neto: number; }
+export interface AnnualTotals extends ContractTotals {
+  anio: number;
+  brutoNominas: number;
+  brutoExtras: number;
+  brutoVacaciones: number;
+}
+
 export interface PayrollExtra {
+  anio: number;
+  seLiquidaAlCese: boolean;
   nombre: string;
   mesPago: 6 | 12;
   periodoInicio: string;
